@@ -47,13 +47,13 @@ Add new dependencies to your project:
 
 ```bash
 # Install the latest stable version
-gemini extensions install https://github.com/yourusername/uv-agent
+gemini extensions install https://github.com/saadmanrafat/uv-agent
 
 # Install a specific version
-gemini extensions install https://github.com/yourusername/uv-agent --ref=v0.1.0
+gemini extensions install https://github.com/saadmanrafat/uv-agent --ref=v0.1.0
 
 # Install development version
-gemini extensions install https://github.com/yourusername/uv-agent --ref=dev
+gemini extensions install https://github.com/saadmanrafat/uv-agent --ref=dev
 ```
 
 After installation, restart your Gemini CLI session to activate the extension.
@@ -62,7 +62,7 @@ After installation, restart your Gemini CLI session to activate the extension.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/uv-agent
+git clone https://github.com/saadmanrafat/uv-agent
 cd uv-agent
 
 # Install dependencies
