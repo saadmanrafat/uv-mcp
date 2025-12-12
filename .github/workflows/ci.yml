@@ -1,0 +1,148 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, dev ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} - Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: uv sync
+    
+    - name: Run tests
+      run: uv run python test_tools.py
+    
+    - name: Verify server starts (Unix)
+      run: timeout 5 uv run uv-agent || true
+      if: runner.os != 'Windows'
+    
+    - name: Verify server starts (Windows)
+      run: |
+        Start-Process -NoNewWindow -FilePath "uv" -ArgumentList "run", "uv-agent"
+        Start-Sleep -Seconds 3
+        Stop-Process -Name "uv" -Force -ErrorAction SilentlyContinue
+      if: runner.os == 'Windows'
+      shell: pwsh
+
+  validate:
+    name: Validate Extension
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Validate gemini-extension.json
+      run: |
+        if [ ! -f "gemini-extension.json" ]; then
+          echo "❌ Error: gemini-extension.json not found"
+          exit 1
+        fi
+        
+        # Validate JSON syntax
+        python3 -m json.tool gemini-extension.json > /dev/null
+        echo "✓ Extension manifest is valid"
+    
+    - name: Check required files
+      run: |
+        required_files=("README.md" "LICENSE" "CHANGELOG.md" "GEMINI.md" "pyproject.toml")
+        for file in "${required_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "❌ Error: Required file $file not found"
+            exit 1
+          fi
+        done
+        echo "✓ All required files present"
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [test, validate]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+    
+    - name: Set up Python
+      run: uv python install 3.11
+    
+    - name: Install dependencies
+      run: uv sync
+    
+    - name: Run tests one more time
+      run: uv run python test_tools.py
+    
+    - name: Create release archive
+      run: |
+        mkdir -p release
+        
+        # Create a generic archive (platform-independent Python extension)
+        tar -czf release/uv-agent.tar.gz \
+          --exclude='.git' \
+          --exclude='release' \
+          --exclude='.venv' \
+          --exclude='__pycache__' \
+          --exclude='*.pyc' \
+          --exclude='.pytest_cache' \
+          --transform 's,^,uv-agent/,' \
+          .
+        
+        echo "✓ Created release archive"
+        ls -lh release/
+    
+    - name: Extract version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release/uv-agent.tar.gz
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## UV-Agent ${{ steps.version.outputs.VERSION }}
+          
+          ### Installation
+          
+          ```bash
+          gemini extensions install https://github.com/${{ github.repository }}
+          ```
+          
+          Or install this specific version:
+          
+          ```bash
+          gemini extensions install https://github.com/${{ github.repository }} --ref=${{ steps.version.outputs.VERSION }}
+          ```
+          
+          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.VERSION }}/CHANGELOG.md) for details.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
