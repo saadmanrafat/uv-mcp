@@ -6,13 +6,13 @@ A Model Context Protocol (MCP) server for `uv` - the fast Python package manager
 
 UV-Agent exposes 5 powerful tools for managing Python environments:
 
-### 🔍 **check_uv_installation**
+### **check_uv_installation**
 Check if `uv` is installed and get version information.
 
-### 📦 **install_uv**
+### **install_uv**
 Get platform-specific installation instructions for `uv`.
 
-### 🏥 **diagnose_environment**
+### **diagnose_environment**
 Comprehensive environment health check that analyzes:
 - uv installation and version
 - Project structure (pyproject.toml, requirements.txt)
@@ -21,14 +21,14 @@ Comprehensive environment health check that analyzes:
 - Python version compatibility
 - Lockfile presence
 
-### 🔧 **repair_environment**
+### **repair_environment**
 Automatically fix common environment issues:
 - Create virtual environment if missing
 - Initialize new project with pyproject.toml
 - Sync dependencies from lockfile
 - Update outdated packages
 
-### ➕ **add_dependency**
+### **add_dependency**
 Add new dependencies to your project:
 - Supports version specifications
 - Development dependencies
