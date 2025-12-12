@@ -1,12 +1,26 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """Test script to verify all UV-Agent MCP tools work correctly."""
 
 import json
 import sys
+import platform
+
+# Ensure UTF-8 encoding for output on all platforms
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+
 sys.path.insert(0, 'src')
 
 from uv_agent.uv_utils import check_uv_available, run_uv_command
 from uv_agent.diagnostics import generate_diagnostic_report
+
+
+# Use ASCII-safe symbols for cross-platform compatibility
+CHECK_MARK = "[PASS]" if platform.system() == "Windows" else "✓"
+CROSS_MARK = "[FAIL]" if platform.system() == "Windows" else "✗"
 
 
 def print_section(title: str):
@@ -23,7 +37,7 @@ def test_check_uv_installation():
     print(f"UV installed: {available}")
     print(f"UV version: {version}")
     assert available, "uv should be installed"
-    print("✓ Test passed: uv is installed")
+    print(f"{CHECK_MARK} Test passed: uv is installed")
 
 
 def test_install_uv():
@@ -37,7 +51,7 @@ def test_install_uv():
     print("Installation methods available:")
     for platform, cmd in instructions.items():
         print(f"  {platform}: {cmd}")
-    print("✓ Test passed: installation instructions available")
+    print(f"{CHECK_MARK} Test passed: installation instructions available")
 
 
 def test_diagnose_environment():
@@ -47,7 +61,7 @@ def test_diagnose_environment():
     print(json.dumps(report, indent=2))
     assert "overall_health" in report, "Should return health status"
     assert report["uv"]["installed"], "uv should be detected"
-    print(f"✓ Test passed: environment health is '{report['overall_health']}'")
+    print(f"{CHECK_MARK} Test passed: environment health is '{report['overall_health']}'")
 
 
 def test_repair_environment():
@@ -63,9 +77,9 @@ def test_repair_environment():
     print(f"Has virtual environment: {has_venv}")
     
     if has_pyproject and has_venv:
-        print("✓ Test passed: environment is healthy, no repairs needed")
+        print(f"{CHECK_MARK} Test passed: environment is healthy, no repairs needed")
     else:
-        print("✓ Test passed: repair would be needed")
+        print(f"{CHECK_MARK} Test passed: repair would be needed")
 
 
 def test_add_dependency():
@@ -76,7 +90,7 @@ def test_add_dependency():
     info = get_project_info()
     print(f"Project: {info.get('project_name', 'unknown')}")
     print(f"Dependencies: {len(info.get('dependencies', []))}")
-    print("✓ Test passed: can read project info for dependency management")
+    print(f"{CHECK_MARK} Test passed: can read project info for dependency management")
 
 
 def main():
@@ -92,7 +106,7 @@ def main():
         test_repair_environment()
         test_add_dependency()
         
-        print_section("All Tests Passed! ✓")
+        print_section(f"All Tests Passed! {CHECK_MARK}")
         print("The UV-Agent MCP server is working correctly.")
         print("\nYou can now:")
         print("1. Run the server: uv run uv-agent")
@@ -100,7 +114,7 @@ def main():
         print("3. Start using the tools through your LLM")
         
     except Exception as e:
-        print(f"\n✗ Test failed: {e}")
+        print(f"\n{CROSS_MARK} Test failed: {e}")
         import traceback
         traceback.print_exc()
         return 1
