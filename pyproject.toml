@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-uv-agent = "uv_agent.server:main"
+uv-mcp = "uv_agent.server:main"
 
 [build-system]
 requires = ["hatchling"]
