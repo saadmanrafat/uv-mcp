@@ -4,7 +4,7 @@
     "description": "MCP server for uv - environment diagnostics, repair, and dependency management",
     "mcpServers": {
         "uv-mcp": {
-            "command": "uv",
+            "command": "/home/saadman/.local/bin/uv",
             "args": [
                 "--directory",
                 "${extensionPath}",
