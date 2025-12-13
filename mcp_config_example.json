@@ -7,7 +7,10 @@
                 "/home/saadman/uv-mcp",
                 "run",
                 "uv-mcp"
-            ]
+            ],
+            "env": {
+                "PATH": "${PATH}:${HOME}/.local/bin"
+            }
         }
     }
 }

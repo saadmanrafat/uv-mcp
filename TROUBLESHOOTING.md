@@ -1,5 +1,41 @@
 # Troubleshooting Guide
 
+## Common Issues
+
+### Error: spawn uv ENOENT
+
+**Problem**: When the MCP server starts, you see:
+```
+Error during discovery for server 'uv-mcp': Connection failed for 'uv-mcp': spawn uv ENOENT
+```
+
+**Root Cause**: The Gemini CLI cannot find the `uv` executable in its PATH when spawning the MCP server process.
+
+**Solution**: The extension configuration now includes PATH environment setup. If you still see this error:
+
+1. **Verify uv is installed**:
+   ```bash
+   which uv
+   uv --version
+   ```
+
+2. **Check your uv installation location**:
+   - Common locations: `~/.local/bin/uv`, `~/.cargo/bin/uv`, or `/usr/local/bin/uv`
+
+3. **Ensure the extension has the latest config**:
+   ```bash
+   cd /path/to/uv-mcp
+   git pull origin main
+   gemini extensions unlink uv-mcp
+   gemini extensions link .
+   ```
+
+4. **Restart Gemini CLI** after relinking the extension
+
+The extension configuration automatically adds `~/.local/bin` to PATH, which is where `uv` is typically installed.
+
+---
+
 ## Installation Issues
 
 ### EACCES: permission denied, mkdtemp '/tmp/gemini-extension...'

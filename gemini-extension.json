@@ -11,7 +11,10 @@
                 "run",
                 "uv-mcp"
             ],
-            "cwd": "${extensionPath}"
+            "cwd": "${extensionPath}",
+            "env": {
+                "PATH": "${PATH}:${HOME}/.local/bin"
+            }
         }
     }
 }
