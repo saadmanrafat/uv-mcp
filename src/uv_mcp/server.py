@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastmcp import FastMCP
 
@@ -18,6 +18,29 @@ from .uv_utils import (
 
 # Initialize FastMCP server
 mcp = FastMCP("uv-mcp")
+
+
+def safe_json_dumps(obj: Any, indent: int = 2) -> str:
+    """
+    Safely serialize object to JSON string with error handling.
+    
+    Args:
+        obj: Object to serialize
+        indent: Indentation level for pretty printing
+        
+    Returns:
+        JSON string representation of the object
+    """
+    try:
+        return json.dumps(obj, indent=indent, default=str)
+    except (TypeError, ValueError) as e:
+        # Fallback: convert problematic values to strings
+        error_msg = {
+            "error": "JSON serialization failed",
+            "details": str(e),
+            "data": str(obj)
+        }
+        return json.dumps(error_msg, indent=indent)
 
 
 @mcp.tool()
@@ -47,7 +70,7 @@ def check_uv_installation() -> str:
             "docs": "https://docs.astral.sh/uv/getting-started/installation/"
         }
     
-    return json.dumps(result, indent=2)
+    return safe_json_dumps(result)
 
 
 @mcp.tool()
@@ -94,7 +117,7 @@ def install_uv() -> str:
         "documentation": "https://docs.astral.sh/uv/getting-started/installation/"
     }
     
-    return json.dumps(instructions, indent=2)
+    return safe_json_dumps(instructions)
 
 
 @mcp.tool()
@@ -119,10 +142,10 @@ def diagnose_environment(project_path: Optional[str] = None) -> str:
     project_dir = Path(project_path) if project_path else Path.cwd()
     
     if not project_dir.exists():
-        return json.dumps({
+        return safe_json_dumps({
             "error": f"Project directory does not exist: {project_path}",
             "overall_health": "critical"
-        }, indent=2)
+        })
     
     # Generate diagnostic report
     report = generate_diagnostic_report(project_dir)
@@ -143,7 +166,7 @@ def diagnose_environment(project_path: Optional[str] = None) -> str:
         "warnings_count": warnings_count
     }
     
-    return json.dumps(report, indent=2)
+    return safe_json_dumps(report)
 
 
 @mcp.tool()
@@ -167,18 +190,18 @@ def repair_environment(project_path: Optional[str] = None, auto_fix: bool = True
     project_dir = Path(project_path) if project_path else Path.cwd()
     
     if not project_dir.exists():
-        return json.dumps({
+        return safe_json_dumps({
             "error": f"Project directory does not exist: {project_path}",
             "success": False
-        }, indent=2)
+        })
     
     # Check if uv is available
     available, version = check_uv_available()
     if not available:
-        return json.dumps({
+        return safe_json_dumps({
             "error": "uv is not installed. Please install uv first using the install_uv tool.",
             "success": False
-        }, indent=2)
+        })
     
     results = {
         "project_dir": str(project_dir),
@@ -268,7 +291,7 @@ def repair_environment(project_path: Optional[str] = None, auto_fix: bool = True
                 "reason": "auto_fix is disabled"
             })
     
-    return json.dumps(results, indent=2)
+    return safe_json_dumps(results)
 
 
 @mcp.tool()
@@ -296,18 +319,18 @@ def add_dependency(
     project_dir = Path(project_path) if project_path else Path.cwd()
     
     if not project_dir.exists():
-        return json.dumps({
+        return safe_json_dumps({
             "error": f"Project directory does not exist: {project_path}",
             "success": False
-        }, indent=2)
+        })
     
     # Check if uv is available
     available, version = check_uv_available()
     if not available:
-        return json.dumps({
+        return safe_json_dumps({
             "error": "uv is not installed. Please install uv first using the install_uv tool.",
             "success": False
-        }, indent=2)
+        })
     
     # Find project root
     root = find_uv_project_root(project_dir)
@@ -316,10 +339,10 @@ def add_dependency(
     
     # Check for pyproject.toml
     if not (project_dir / "pyproject.toml").exists():
-        return json.dumps({
+        return safe_json_dumps({
             "error": "No pyproject.toml found. Initialize a project first using repair_environment.",
             "success": False
-        }, indent=2)
+        })
     
     # Build command
     cmd = ["add", package]
@@ -349,7 +372,7 @@ def add_dependency(
         result["message"] = f"Failed to add {package}"
         result["error"] = stderr
     
-    return json.dumps(result, indent=2)
+    return safe_json_dumps(result)
 
 
 def main():

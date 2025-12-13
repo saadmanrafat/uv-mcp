@@ -1,10 +1,10 @@
 {
     "name": "uv-mcp",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "MCP server for uv - environment diagnostics, repair, and dependency management",
     "mcpServers": {
         "uv-mcp": {
-            "command": "/home/saadman/.local/bin/uv",
+            "command": "uv",
             "args": [
                 "--directory",
                 "${extensionPath}",

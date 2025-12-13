@@ -84,18 +84,26 @@ def check_dependencies(project_dir: Optional[Path] = None) -> dict:
     # Check for dependency conflicts using uv pip check
     success, stdout, stderr = run_uv_command(["pip", "check"], cwd=project_dir)
     
-    if not success:
+    if success:
+        # Command succeeded, check the output
         if "No broken requirements found" in stdout or "No broken requirements found" in stderr:
-            results["warnings"].append("Dependency check completed successfully")
+            # All good, no conflicts
+            pass
         else:
+            # Command succeeded but found issues
             results["healthy"] = False
-            results["issues"].append(f"Dependency conflicts detected: {stderr}")
+            results["issues"].append(f"Dependency conflicts detected in output")
+    else:
+        # Command failed
+        results["healthy"] = False
+        results["issues"].append(f"Failed to check dependencies: {stderr}")
     
     # Check if dependencies are installed
     if info["has_pyproject"]:
         success, stdout, stderr = run_uv_command(["pip", "list"], cwd=project_dir)
         if success:
-            installed_count = len(stdout.strip().split("\n")) - 2  # Subtract header lines
+            lines = stdout.strip().split("\n")
+            installed_count = max(0, len(lines) - 2)  # Prevent negative counts
             results["installed_packages"] = installed_count
         else:
             results["warnings"].append("Could not list installed packages")
@@ -144,6 +152,23 @@ def check_python_version(project_dir: Optional[Path] = None) -> dict:
     return results
 
 
+def _get_worst_health(current: str, new: str) -> str:
+    """
+    Compare two health statuses and return the worse one.
+    
+    Args:
+        current: Current health status
+        new: New health status to compare
+        
+    Returns:
+        The worse of the two statuses
+    """
+    severity = {"healthy": 0, "warning": 1, "critical": 2}
+    current_severity = severity.get(current, 0)
+    new_severity = severity.get(new, 0)
+    return current if current_severity >= new_severity else new
+
+
 def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict:
     """
     Generate a comprehensive environment health report.
@@ -185,23 +210,23 @@ def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict:
     report["structure"] = structure
     
     if not structure["valid"]:
-        report["overall_health"] = "critical"
+        report["overall_health"] = _get_worst_health(report["overall_health"], "critical")
     elif structure["warnings"]:
-        report["overall_health"] = "warning"
+        report["overall_health"] = _get_worst_health(report["overall_health"], "warning")
     
     # Check dependencies
     dependencies = check_dependencies(project_dir)
     report["dependencies"] = dependencies
     
     if not dependencies["healthy"]:
-        report["overall_health"] = "critical"
+        report["overall_health"] = _get_worst_health(report["overall_health"], "critical")
     
     # Check Python version
     python_check = check_python_version(project_dir)
     report["python"] = python_check
     
     if not python_check["compatible"]:
-        report["overall_health"] = "critical"
+        report["overall_health"] = _get_worst_health(report["overall_health"], "critical")
     
     # Check virtual environment
     in_venv, venv_path = check_virtual_env()

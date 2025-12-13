@@ -36,12 +36,12 @@ jobs:
       run: uv run python test_tools.py
     
     - name: Verify server starts (Unix)
-      run: timeout 5 uv run uv-agent || true
+      run: timeout 5 uv run uv-mcp || true
       if: runner.os != 'Windows'
     
     - name: Verify server starts (Windows)
       run: |
-        Start-Process -NoNewWindow -FilePath "uv" -ArgumentList "run", "uv-agent"
+        Start-Process -NoNewWindow -FilePath "uv" -ArgumentList "run", "uv-mcp"
         Start-Sleep -Seconds 3
         Stop-Process -Name "uv" -Force -ErrorAction SilentlyContinue
       if: runner.os == 'Windows'
@@ -106,14 +106,14 @@ jobs:
         mkdir -p release
         
         # Create a generic archive (platform-independent Python extension)
-        tar -czf release/uv-agent.tar.gz \
+        tar -czf release/uv-mcp.tar.gz \
           --exclude='.git' \
           --exclude='release' \
           --exclude='.venv' \
           --exclude='__pycache__' \
           --exclude='*.pyc' \
           --exclude='.pytest_cache' \
-          --transform 's,^,uv-agent/,' \
+          --transform 's,^,uv-mcp/,' \
           .
         
         echo "✓ Created release archive"
@@ -126,7 +126,7 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        files: release/uv-agent.tar.gz
+        files: release/uv-mcp.tar.gz
         draft: false
         prerelease: false
         generate_release_notes: true

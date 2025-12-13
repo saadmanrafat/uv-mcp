@@ -1,0 +1,70 @@
+# Docker-specific files
+.dockerignore
+
+# Ignore Dockerfile itself when copying context
+# (we want to copy it, so this is commented out)
+# Dockerfile
+
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv
+venv
+ENV
+env
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+
+# Build artifacts
+build
+dist
+*.egg-info
+.eggs
+
+# Documentation
+docs/_build
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local development
+.env
+.env.local
+*.local
+
+# Large files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.mov
+
+# Jupyter
+.ipynb_checkpoints

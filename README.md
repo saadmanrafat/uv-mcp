@@ -1,6 +1,3 @@
-
-
-
 # UV-mcp MCP Server
 
 [![Video Thumbnail](gemini_terminal_upscaled_4x.png)](https://www.youtube.com/watch?v=Tv2dUt73mM8) 
@@ -45,9 +42,26 @@ Add new dependencies to your project:
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- `uv` package manager (will be checked/installed by the server)
-- Gemini CLI
+1. **Python 3.10 or higher**
+
+2. **`uv` package manager** - Install it first:
+   ```bash
+   # Linux/macOS
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Windows
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   
+   # Or via pip
+   pip install uv
+   ```
+   
+   Verify installation:
+   ```bash
+   uv --version
+   ```
+
+3. **Gemini CLI** - Required for extension installation
 
 ### Install from GitHub (Recommended)
 
@@ -56,7 +70,7 @@ Add new dependencies to your project:
 gemini extensions install https://github.com/saadmanrafat/uv-mcp
 
 # Install a specific version
-gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=v0.2.0
+gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=v0.3.0
 
 # Install development version
 gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=dev
@@ -88,13 +102,40 @@ The server runs in stdio mode for MCP communication:
 uv run uv-mcp
 ```
 
-### Configuration for Claude Desktop
+### Configuration for Claude Desktop / Claude Code
 
-Add this configuration to your Claude Desktop config file:
+UV-mcp works with both **Claude Desktop** and **Claude Code**. Choose your preferred configuration method:
 
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-**Linux**: `~/.config/Claude/claude_desktop_config.json`
+#### Option 1: Using Claude Code CLI (Recommended)
+
+If you have Claude Code installed, you can add the MCP server using the CLI:
+
+```bash
+# Add uv-mcp server globally (available in all projects)
+claude mcp add uv-mcp --scope user -- uv --directory /path/to/uv-mcp run uv-mcp
+
+# Or add for current project only
+claude mcp add uv-mcp --scope project -- uv --directory /path/to/uv-mcp run uv-mcp
+```
+
+Verify the server was added:
+```bash
+claude mcp list
+```
+
+To remove the server:
+```bash
+claude mcp remove uv-mcp
+```
+
+#### Option 2: Manual Configuration File
+
+Add this configuration to your Claude Desktop/Code config file:
+
+**Config file locations:**
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -103,7 +144,7 @@ Add this configuration to your Claude Desktop config file:
       "command": "uv",
       "args": [
         "--directory",
-        "/home/saadman/uv-mcp",
+        "/path/to/uv-mcp",
         "run",
         "uv-mcp"
       ]
@@ -111,6 +152,8 @@ Add this configuration to your Claude Desktop config file:
   }
 }
 ```
+
+> **Note:** Replace `/path/to/uv-mcp` with the actual path where you cloned or installed uv-mcp.
 
 ### Configuration for Gemini CLI Extension
 
@@ -120,7 +163,7 @@ UV-mcp can be installed as a Gemini CLI extension for seamless integration.
 
 ```bash
 # Navigate to the UV-mcp directory
-cd /home/saadman/uv-mcp
+cd /path/to/uv-mcp
 
 # Link the extension to Gemini CLI
 gemini extensions link .
@@ -146,7 +189,7 @@ If you prefer manual configuration, add this to your Gemini settings:
       "command": "uv",
       "args": [
         "--directory",
-        "/home/saadman/uv-mcp",
+        "/path/to/uv-mcp",
         "run",
         "uv-mcp"
       ]
@@ -154,6 +197,8 @@ If you prefer manual configuration, add this to your Gemini settings:
   }
 }
 ```
+
+> **Note:** Replace `/path/to/uv-mcp` with the actual path to your uv-mcp installation.
 
 ## Example Workflows
 
@@ -245,26 +290,54 @@ uv-mcp/
 │       ├── server.py          # Main MCP server
 │       ├── uv_utils.py        # uv command utilities
 │       └── diagnostics.py     # Environment diagnostics
+├── tests/
+│   ├── __init__.py
+│   └── test_uv_mcp.py         # Comprehensive pytest test suite
 ├── gemini-extension.json      # Gemini CLI extension manifest
 ├── GEMINI.md                  # Extension instructions for AI
-├── GEMINI_CLI_QUICKSTART.md   # Quick start guide
 ├── pyproject.toml
-├── README.md
-├── test_tools.py              # Verification test suite
-└── .gitignore
+├── Dockerfile                 # Multi-stage Docker build
+├── docker-compose.yml         # Docker Compose configuration
+├── pytest.ini                 # Pytest configuration
+├── test_tools.py              # Quick verification tests
+└── README.md
 ```
 
 ### Testing
 
 ```bash
+# Run comprehensive test suite with pytest
+uv run pytest tests/ -v
+
+# Run with coverage report
+uv run pytest tests/ --cov=uv_mcp --cov-report=html
+
+# Quick verification tests
+uv run python test_tools.py
+
 # Test uv detection
 uv run python -c "from uv_mcp.uv_utils import check_uv_available; print(check_uv_available())"
 
-# Run the server
-uv run uv-mcp
-
 # Test with MCP Inspector (if available)
 npx @modelcontextprotocol/inspector uv run uv-mcp
+```
+
+### Docker
+
+Build and run with Docker:
+
+```bash
+# Build the image
+docker build -t uv-mcp .
+
+# Run the container
+docker run -it uv-mcp
+
+# Using Docker Compose
+docker-compose up -d uv-mcp
+
+# Run tests in Docker
+docker-compose --profile testing run test
 ```
 
 ## Troubleshooting

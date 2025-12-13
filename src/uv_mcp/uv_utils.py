@@ -1,5 +1,6 @@
 """Utility functions for interacting with uv."""
 
+import os
 import shutil
 import subprocess
 import sys
@@ -145,6 +146,3 @@ def find_uv_project_root(start_dir: Optional[Path] = None) -> Optional[Path]:
         return current
     
     return None
-
-
-import os

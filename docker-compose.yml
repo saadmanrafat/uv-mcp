@@ -1,0 +1,68 @@
+# Docker Compose for UV-MCP
+# Provides easy development and testing workflows
+
+version: "3.9"
+
+services:
+  # =============================================================================
+  # Production MCP Server
+  # =============================================================================
+  uv-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: uv-mcp:latest
+    container_name: uv-mcp-server
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    volumes:
+      # Mount project directories for diagnostics (optional)
+      - ./:/workspace:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "from uv_mcp.uv_utils import check_uv_available; assert check_uv_available()[0]"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # =============================================================================
+  # Development/Testing Container
+  # =============================================================================
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    image: uv-mcp:dev
+    container_name: uv-mcp-test
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./test_tools.py:/app/test_tools.py:ro
+    command: ["pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - testing
+
+  # =============================================================================
+  # Quick verification (smoke tests)
+  # =============================================================================
+  verify:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: uv-mcp:latest
+    container_name: uv-mcp-verify
+    command: ["python", "test_tools.py"]
+    volumes:
+      - ./test_tools.py:/app/test_tools.py:ro
+    profiles:
+      - testing
+
+networks:
+  default:
+    name: uv-mcp-network
