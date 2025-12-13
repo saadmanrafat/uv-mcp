@@ -1,4 +1,10 @@
+
+
+
 # UV-Agent MCP Server
+
+[![Video Thumbnail](gemini_terminal_upscaled_4x.png)](https://www.youtube.com/watch?v=Tv2dUt73mM8) 
+Play
 
 A Model Context Protocol (MCP) server for `uv` - the fast Python package manager. UV-Agent provides environment diagnostics, repair capabilities, and dependency management through a Gemini CLI extension.
 
