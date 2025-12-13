@@ -1,12 +1,12 @@
 {
     "mcpServers": {
-        "uv-agent": {
+        "uv-mcp": {
             "command": "uv",
             "args": [
                 "--directory",
                 "/home/saadman/uv-mcp",
                 "run",
-                "uv-agent"
+                "uv-mcp"
             ]
         }
     }

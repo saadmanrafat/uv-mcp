@@ -37,5 +37,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 86 dependencies installed and tested
 - All tests passing
 
-[Unreleased]: https://github.com/yourusername/uv-agent/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/yourusername/uv-agent/releases/tag/v0.1.0
+[Unreleased]: https://github.com/saadmanrafat/uv-mcp/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/saadmanrafat/uv-mcp/releases/tag/v0.1.0

@@ -17,7 +17,7 @@ from .uv_utils import (
 )
 
 # Initialize FastMCP server
-mcp = FastMCP("uv-agent")
+mcp = FastMCP("uv-mcp")
 
 
 @mcp.tool()

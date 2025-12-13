@@ -1,15 +1,15 @@
 {
-    "name": "uv-agent",
+    "name": "uv-mcp",
     "version": "0.1.0",
     "description": "MCP server for uv - environment diagnostics, repair, and dependency management",
     "mcpServers": {
-        "uv-agent": {
+        "uv-mcp": {
             "command": "uv",
             "args": [
                 "--directory",
                 "${extensionPath}",
                 "run",
-                "uv-agent"
+                "uv-mcp"
             ],
             "cwd": "${extensionPath}"
         }

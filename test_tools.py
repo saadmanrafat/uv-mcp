@@ -14,8 +14,8 @@ if sys.platform == 'win32':
 
 sys.path.insert(0, 'src')
 
-from uv_agent.uv_utils import check_uv_available, run_uv_command
-from uv_agent.diagnostics import generate_diagnostic_report
+from uv_mcp.uv_utils import check_uv_available, run_uv_command
+from uv_mcp.diagnostics import generate_diagnostic_report
 
 
 # Use ASCII-safe symbols for cross-platform compatibility
@@ -86,7 +86,7 @@ def test_add_dependency():
     """Test dependency addition (dry run)."""
     print_section("Testing: dependency addition (dry run)")
     # Just verify we can check project info
-    from uv_agent.uv_utils import get_project_info
+    from uv_mcp.uv_utils import get_project_info
     info = get_project_info()
     print(f"Project: {info.get('project_name', 'unknown')}")
     print(f"Dependencies: {len(info.get('dependencies', []))}")
@@ -109,7 +109,7 @@ def main():
         print_section(f"All Tests Passed! {CHECK_MARK}")
         print("The UV-Agent MCP server is working correctly.")
         print("\nYou can now:")
-        print("1. Run the server: uv run uv-agent")
+        print("1. Run the server: uv run uv-mcp")
         print("2. Configure it in Claude Desktop or Gemini")
         print("3. Start using the tools through your LLM")
         

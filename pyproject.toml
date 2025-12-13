@@ -1,5 +1,5 @@
 [project]
-name = "uv-agent"
+name = "uv-mcp"
 version = "0.1.0"
 description = "MCP server for uv - environment diagnostics, repair, and dependency management"
 authors = [{ name = "Saadman Rafat", email = "saadman@outlook.com" }]
@@ -10,11 +10,11 @@ dependencies = [
 ]
 
 [project.scripts]
-uv-mcp = "uv_agent.server:main"
+uv-mcp = "uv_mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/uv_agent"]
+packages = ["src/uv_mcp"]

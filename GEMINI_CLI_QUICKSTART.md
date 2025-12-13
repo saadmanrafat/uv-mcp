@@ -41,7 +41,7 @@ The UV-Agent tools should now be available in your Gemini CLI session. You can v
 To remove the extension:
 
 ```bash
-gemini extensions unlink uv-agent
+gemini extensions unlink uv-mcp
 ```
 
 ## Usage Examples

@@ -15,8 +15,8 @@ Thank you for your interest in contributing to UV-Agent! This document provides 
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/uv-agent
-   cd uv-agent
+   git clone https://github.com/saadmanrafat/uv-mcp
+   cd uv-mcp
    ```
 
 2. **Install dependencies**:
@@ -44,9 +44,9 @@ Thank you for your interest in contributing to UV-Agent! This document provides 
    ```
 
 2. Make your changes in the appropriate files:
-   - `src/uv_agent/server.py` - MCP server and tools
-   - `src/uv_agent/uv_utils.py` - UV utility functions
-   - `src/uv_agent/diagnostics.py` - Environment diagnostics
+   - `src/uv_mcp/server.py` - MCP server and tools
+   - `src/uv_mcp/uv_utils.py` - UV utility functions
+   - `src/uv_mcp/diagnostics.py` - Environment diagnostics
 
 3. Test your changes:
    ```bash
@@ -74,7 +74,7 @@ All changes should include tests. Add test cases to `test_tools.py` or create ne
 uv run python test_tools.py
 
 # Test the MCP server
-uv run uv-agent
+uv run uv-mcp
 ```
 
 ## Submitting Changes
