@@ -56,7 +56,7 @@ Add new dependencies to your project:
 gemini extensions install https://github.com/saadmanrafat/uv-mcp
 
 # Install a specific version
-gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=v0.1.0
+gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=v0.2.0
 
 # Install development version
 gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=dev
