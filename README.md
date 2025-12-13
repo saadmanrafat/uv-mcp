@@ -1,16 +1,16 @@
 
 
 
-# UV-Agent MCP Server
+# UV-mcp MCP Server
 
 [![Video Thumbnail](gemini_terminal_upscaled_4x.png)](https://www.youtube.com/watch?v=Tv2dUt73mM8) 
 Play
 
-A Model Context Protocol (MCP) server for `uv` - the fast Python package manager. UV-Agent provides environment diagnostics, repair capabilities, and dependency management through a Gemini CLI extension.
+A Model Context Protocol (MCP) server for `uv` - the fast Python package manager. UV-mcp provides environment diagnostics, repair capabilities, and dependency management through a Gemini CLI extension.
 
 ## Features
 
-UV-Agent exposes 5 powerful tools for managing Python environments:
+UV-mcp exposes 5 powerful tools for managing Python environments:
 
 ### **check_uv_installation**
 Check if `uv` is installed and get version information.
@@ -53,13 +53,13 @@ Add new dependencies to your project:
 
 ```bash
 # Install the latest stable version
-gemini extensions install https://github.com/saadmanrafat/uv-agent
+gemini extensions install https://github.com/saadmanrafat/uv-mcp
 
 # Install a specific version
-gemini extensions install https://github.com/saadmanrafat/uv-agent --ref=v0.1.0
+gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=v0.1.0
 
 # Install development version
-gemini extensions install https://github.com/saadmanrafat/uv-agent --ref=dev
+gemini extensions install https://github.com/saadmanrafat/uv-mcp --ref=dev
 ```
 
 After installation, restart your Gemini CLI session to activate the extension.
@@ -68,8 +68,8 @@ After installation, restart your Gemini CLI session to activate the extension.
 
 ```bash
 # Clone the repository
-git clone https://github.com/saadmanrafat/uv-agent
-cd uv-agent
+git clone https://github.com/saadmanrafat/uv-mcp
+cd uv-mcp
 
 # Install dependencies
 uv sync
@@ -85,7 +85,7 @@ gemini extensions link .
 The server runs in stdio mode for MCP communication:
 
 ```bash
-uv run uv-agent
+uv run uv-mcp
 ```
 
 ### Configuration for Claude Desktop
@@ -99,13 +99,13 @@ Add this configuration to your Claude Desktop config file:
 ```json
 {
   "mcpServers": {
-    "uv-agent": {
+    "uv-mcp": {
       "command": "uv",
       "args": [
         "--directory",
         "/home/saadman/uv-mcp",
         "run",
-        "uv-agent"
+        "uv-mcp"
       ]
     }
   }
@@ -114,25 +114,25 @@ Add this configuration to your Claude Desktop config file:
 
 ### Configuration for Gemini CLI Extension
 
-UV-Agent can be installed as a Gemini CLI extension for seamless integration.
+UV-mcp can be installed as a Gemini CLI extension for seamless integration.
 
 #### Install as Extension
 
 ```bash
-# Navigate to the UV-Agent directory
+# Navigate to the UV-mcp directory
 cd /home/saadman/uv-mcp
 
 # Link the extension to Gemini CLI
 gemini extensions link .
 ```
 
-After linking, restart your Gemini CLI session. The UV-Agent tools will be automatically available.
+After linking, restart your Gemini CLI session. The UV-mcp tools will be automatically available.
 
 #### Uninstall Extension
 
 ```bash
 # Unlink the extension
-gemini extensions unlink uv-agent
+gemini extensions unlink uv-mcp
 ```
 
 #### Manual Configuration (Alternative)
@@ -142,13 +142,13 @@ If you prefer manual configuration, add this to your Gemini settings:
 ```json
 {
   "mcpServers": {
-    "uv-agent": {
+    "uv-mcp": {
       "command": "uv",
       "args": [
         "--directory",
         "/home/saadman/uv-mcp",
         "run",
-        "uv-agent"
+        "uv-mcp"
       ]
     }
   }
@@ -160,9 +160,9 @@ If you prefer manual configuration, add this to your Gemini settings:
 ### Diagnosing a Project
 
 Ask your LLM:
-> "Use uv-agent to diagnose my Python environment"
+> "Use uv-mcp to diagnose my Python environment"
 
-The agent will:
+The mcp will:
 1. Check if uv is installed
 2. Analyze project structure
 3. Check dependencies for conflicts
@@ -174,7 +174,7 @@ The agent will:
 Ask your LLM:
 > "My Python environment is broken. Can you fix it?"
 
-The agent will:
+The mcp will:
 1. Create a virtual environment if needed
 2. Initialize pyproject.toml if missing
 3. Sync all dependencies
@@ -185,7 +185,7 @@ The agent will:
 Ask your LLM:
 > "Add requests and pytest as a dev dependency to my project"
 
-The agent will:
+The mcp will:
 1. Add requests to dependencies
 2. Add pytest to dev dependencies
 3. Update pyproject.toml
@@ -240,7 +240,7 @@ Returns installation instructions for all platforms.
 ```
 uv-mcp/
 ├── src/
-│   └── uv_agent/
+│   └── uv_mcp/
 │       ├── __init__.py
 │       ├── server.py          # Main MCP server
 │       ├── uv_utils.py        # uv command utilities
@@ -258,13 +258,13 @@ uv-mcp/
 
 ```bash
 # Test uv detection
-uv run python -c "from uv_agent.uv_utils import check_uv_available; print(check_uv_available())"
+uv run python -c "from uv_mcp.uv_utils import check_uv_available; print(check_uv_available())"
 
 # Run the server
-uv run uv-agent
+uv run uv-mcp
 
 # Test with MCP Inspector (if available)
-npx @modelcontextprotocol/inspector uv run uv-agent
+npx @modelcontextprotocol/inspector uv run uv-mcp
 ```
 
 ## Troubleshooting
