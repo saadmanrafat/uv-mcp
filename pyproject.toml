@@ -1,6 +1,6 @@
 [project]
 name = "uv-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP server for uv - environment diagnostics, repair, and dependency management"
 authors = [{ name = "Saadman Rafat", email = "saadman@outlook.com" }]
 readme = "README.md"
