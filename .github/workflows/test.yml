@@ -37,6 +37,12 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       run: uv python install ${{ matrix.python-version }}
 
+    - name: Debug: List files in repository root
+      run: ls -la
+
+    - name: Debug: Print uv.lock content if exists
+      run: cat uv.lock || echo "uv.lock not found or readable"
+
     - name: Install dependencies
       run: uv sync
 
