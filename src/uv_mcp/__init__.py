@@ -1,3 +1,3 @@
 """UV-Agent MCP Server - Environment diagnostics, repair, and dependency management for uv."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
