@@ -1,9 +1,5 @@
 # UV-mcp MCP Server
 
-[![geminicli.com: featured extension](https://img.shields.io/badge/geminicli.com-featured%20extension-5F55AF?style=for-the-badge&logoColor=white)](https://geminicli.com/extensions)
-![Python](https://img.shields.io/badge/Python-3.10%2B-FFE873?style=for-the-badge&logo=python&logoColor=white)
-![Gemini](https://img.shields.io/badge/Gemini-Powered-4285F4?style=for-the-badge&logo=google&logoColor=white)
-
 [![Video Thumbnail](gemini_terminal_upscaled_4x.png)](https://www.youtube.com/watch?v=Tv2dUt73mM8) 
 
 A Model Context Protocol (MCP) server for `uv` - the fast Python package manager. UV-mcp provides environment diagnostics, repair capabilities, and dependency management through a Gemini CLI extension.
