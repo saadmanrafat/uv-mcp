@@ -82,19 +82,17 @@ async def check_dependencies(project_dir: Optional[Path] = None) -> dict:
     # Check for dependency conflicts using uv pip check
     success, stdout, stderr = await run_uv_command(["pip", "check"], cwd=project_dir)
     
-    if success:
-        # Command succeeded, check the output
-        if "No broken requirements found" in stdout or "No broken requirements found" in stderr:
-            # All good, no conflicts
-            pass
-        else:
-            # Command succeeded but found issues
-            results["healthy"] = False
-            results["issues"].append(f"Dependency conflicts detected in output")
-    else:
-        # Command failed
-        results["healthy"] = False
-        results["issues"].append(f"Failed to check dependencies: {stderr}")
+    if not success:
+        # If command failed, check if it's because of broken requirements (exit code 1)
+        # or some other error. uv pip check prints issues to stdout/stderr.
+        if "No broken requirements found" not in stdout and "No broken requirements found" not in stderr:
+             results["healthy"] = False
+             # Determine if it's a "broken requirements" issue or "tool failed" issue
+             # Usually broken requirements will have details in stdout/stderr
+             if stdout.strip() or stderr.strip():
+                 results["issues"].append(f"Dependency conflicts detected: {stdout.strip() or stderr.strip()}")
+             else:
+                 results["issues"].append(f"Failed to check dependencies: {stderr}")
     
     # Check if dependencies are installed
     if info["has_pyproject"]:
@@ -109,7 +107,7 @@ async def check_dependencies(project_dir: Optional[Path] = None) -> dict:
     return results
 
 
-def check_python_version(project_dir: Optional[Path] = None) -> dict:
+async def check_python_version(project_dir: Optional[Path] = None) -> dict:
     """
     Validate Python version requirements.
     
@@ -125,26 +123,45 @@ def check_python_version(project_dir: Optional[Path] = None) -> dict:
     
     results = {
         "compatible": True,
-        "current_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "current_version": "unknown",
+        "source": "unknown",
         "issues": [],
         "warnings": []
     }
     
     info = get_project_info(project_dir)
+    required = info.get("python_version")
     
-    if "python_version" in info and info["python_version"] != "unknown":
-        required = info["python_version"]
+    # Check the actual python version in the environment
+    # Try using 'uv run python --version' which runs in the project's environment
+    success, stdout, stderr = await run_uv_command(["run", "python", "--version"], cwd=project_dir)
+    
+    if success:
+        # Output is like "Python 3.12.0"
+        version_str = stdout.strip().split()[-1]
+        results["current_version"] = version_str
+        results["source"] = "virtual_env"
+    else:
+        # Fallback to system python check if uv run fails (e.g. no venv yet)
+        # But report that we are falling back
+        results["warnings"].append("Could not determine project Python version (env might be missing)")
+        results["source"] = "system_fallback"
+        results["current_version"] = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        results["warnings"].append(f"Using system Python {results['current_version']} for comparison")
+
+    if required and required != "unknown":
         results["required_version"] = required
         
-        # Basic version check (simplified)
-        if ">=" in required:
-            # min_version = required.split(">=")[1].strip()
-            results["warnings"].append(f"Project requires Python {required}")
-        elif "==" in required:
+        # specific version check logic could be improved with 'packaging' library
+        # but for now we do string matching if exact version is required
+        if "==" in required:
             exact_version = required.split("==")[1].strip()
-            if exact_version not in results["current_version"]:
+            if results["current_version"] != "unknown" and exact_version not in results["current_version"]:
                 results["compatible"] = False
                 results["issues"].append(f"Python version mismatch: need {exact_version}, have {results['current_version']}")
+        elif ">=" in required:
+             # Just a warning for now as we don't fully parse semver here
+             pass
     
     return results
 
@@ -219,7 +236,7 @@ async def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict
         report["overall_health"] = _get_worst_health(report["overall_health"], "critical")
     
     # Check Python version
-    python_check = check_python_version(project_dir)
+    python_check = await check_python_version(project_dir)
     report["python"] = python_check
     
     if not python_check["compatible"]:
