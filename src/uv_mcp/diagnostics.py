@@ -2,10 +2,12 @@
 
 from pathlib import Path
 from typing import Optional
+import sys
+
 from .uv_utils import (
     check_uv_available,
     get_project_info,
-    check_virtual_env,
+    check_project_venv,
     run_uv_command,
     find_uv_project_root
 )
@@ -39,13 +41,9 @@ def check_project_structure(project_dir: Optional[Path] = None) -> dict:
             results["warnings"].append("Using requirements.txt instead of pyproject.toml (consider migrating)")
     
     # Check for virtual environment
-    venv_dirs = [".venv", "venv", "env"]
-    has_venv = any((project_dir / vdir).exists() for vdir in venv_dirs)
-    
-    in_venv, venv_path = check_virtual_env()
-    
-    if not has_venv and not in_venv:
-        results["warnings"].append("No virtual environment detected")
+    venv_exists, _ = check_project_venv(project_dir)
+    if not venv_exists:
+        results["warnings"].append("No .venv detected in project root")
     
     # Check for lockfile
     if (project_dir / "pyproject.toml").exists() and not (project_dir / "uv.lock").exists():
@@ -54,7 +52,7 @@ def check_project_structure(project_dir: Optional[Path] = None) -> dict:
     return results
 
 
-def check_dependencies(project_dir: Optional[Path] = None) -> dict:
+async def check_dependencies(project_dir: Optional[Path] = None) -> dict:
     """
     Analyze dependency health.
     
@@ -82,7 +80,7 @@ def check_dependencies(project_dir: Optional[Path] = None) -> dict:
         return results
     
     # Check for dependency conflicts using uv pip check
-    success, stdout, stderr = run_uv_command(["pip", "check"], cwd=project_dir)
+    success, stdout, stderr = await run_uv_command(["pip", "check"], cwd=project_dir)
     
     if success:
         # Command succeeded, check the output
@@ -100,7 +98,7 @@ def check_dependencies(project_dir: Optional[Path] = None) -> dict:
     
     # Check if dependencies are installed
     if info["has_pyproject"]:
-        success, stdout, stderr = run_uv_command(["pip", "list"], cwd=project_dir)
+        success, stdout, stderr = await run_uv_command(["pip", "list"], cwd=project_dir)
         if success:
             lines = stdout.strip().split("\n")
             installed_count = max(0, len(lines) - 2)  # Prevent negative counts
@@ -121,7 +119,6 @@ def check_python_version(project_dir: Optional[Path] = None) -> dict:
     Returns:
         Dictionary with Python version validation results
     """
-    import sys
     
     if project_dir is None:
         project_dir = Path.cwd()
@@ -141,7 +138,7 @@ def check_python_version(project_dir: Optional[Path] = None) -> dict:
         
         # Basic version check (simplified)
         if ">=" in required:
-            min_version = required.split(">=")[1].strip()
+            # min_version = required.split(">=")[1].strip()
             results["warnings"].append(f"Project requires Python {required}")
         elif "==" in required:
             exact_version = required.split("==")[1].strip()
@@ -169,7 +166,7 @@ def _get_worst_health(current: str, new: str) -> str:
     return current if current_severity >= new_severity else new
 
 
-def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict:
+async def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict:
     """
     Generate a comprehensive environment health report.
     
@@ -194,7 +191,7 @@ def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict:
     }
     
     # Check uv installation
-    uv_available, uv_version = check_uv_available()
+    uv_available, uv_version = await check_uv_available()
     report["uv"] = {
         "installed": uv_available,
         "version": uv_version
@@ -215,7 +212,7 @@ def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict:
         report["overall_health"] = _get_worst_health(report["overall_health"], "warning")
     
     # Check dependencies
-    dependencies = check_dependencies(project_dir)
+    dependencies = await check_dependencies(project_dir)
     report["dependencies"] = dependencies
     
     if not dependencies["healthy"]:
@@ -229,9 +226,9 @@ def generate_diagnostic_report(project_dir: Optional[Path] = None) -> dict:
         report["overall_health"] = _get_worst_health(report["overall_health"], "critical")
     
     # Check virtual environment
-    in_venv, venv_path = check_virtual_env()
+    venv_exists, venv_path = check_project_venv(project_dir)
     report["virtual_env"] = {
-        "active": in_venv,
+        "active": venv_exists, # in this context "active" just means exists in project
         "path": venv_path
     }
     

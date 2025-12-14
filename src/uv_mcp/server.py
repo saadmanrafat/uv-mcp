@@ -8,12 +8,11 @@ from typing import Any, Optional
 from fastmcp import FastMCP
 
 from .diagnostics import generate_diagnostic_report
-from .uv_utils import (
-    check_uv_available,
-    check_virtual_env,
-    find_uv_project_root,
-    get_project_info,
-    run_uv_command,
+from .actions import (
+    repair_environment_action,
+    add_dependency_action,
+    check_uv_installation_action,
+    get_install_instructions_action
 )
 
 # Initialize FastMCP server
@@ -44,37 +43,19 @@ def safe_json_dumps(obj: Any, indent: int = 2) -> str:
 
 
 @mcp.tool()
-def check_uv_installation() -> str:
+async def check_uv_installation() -> str:
     """
     Check if uv is installed and return version information.
     
     Returns:
         JSON string with installation status and version info
     """
-    available, version = check_uv_available()
-    
-    result = {
-        "installed": available,
-        "version": version,
-        "message": ""
-    }
-    
-    if available:
-        result["message"] = f"✓ uv is installed: {version}"
-    else:
-        result["message"] = "✗ uv is not installed"
-        result["installation_instructions"] = {
-            "linux_mac": "curl -LsSf https://astral.sh/uv/install.sh | sh",
-            "windows": "powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"",
-            "pip": "pip install uv",
-            "docs": "https://docs.astral.sh/uv/getting-started/installation/"
-        }
-    
+    result = await check_uv_installation_action()
     return safe_json_dumps(result)
 
 
 @mcp.tool()
-def install_uv() -> str:
+async def install_uv() -> str:
     """
     Provide installation instructions for uv.
     
@@ -84,44 +65,12 @@ def install_uv() -> str:
     Returns:
         JSON string with installation instructions
     """
-    instructions = {
-        "message": "uv installation instructions",
-        "methods": {
-            "standalone_installer": {
-                "linux_mac": {
-                    "command": "curl -LsSf https://astral.sh/uv/install.sh | sh",
-                    "description": "Download and run the official installer script"
-                },
-                "windows": {
-                    "command": "powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"",
-                    "description": "Download and run the official PowerShell installer"
-                }
-            },
-            "pip": {
-                "command": "pip install uv",
-                "description": "Install via pip (requires Python already installed)"
-            },
-            "homebrew": {
-                "command": "brew install uv",
-                "description": "Install via Homebrew (macOS/Linux)"
-            },
-            "cargo": {
-                "command": "cargo install --git https://github.com/astral-sh/uv uv",
-                "description": "Build from source using Cargo (Rust)"
-            }
-        },
-        "verification": {
-            "command": "uv --version",
-            "description": "Verify installation by checking the version"
-        },
-        "documentation": "https://docs.astral.sh/uv/getting-started/installation/"
-    }
-    
-    return safe_json_dumps(instructions)
+    result = get_install_instructions_action()
+    return safe_json_dumps(result)
 
 
 @mcp.tool()
-def diagnose_environment(project_path: Optional[str] = None) -> str:
+async def diagnose_environment(project_path: Optional[str] = None) -> str:
     """
     Analyze the health of a Python environment and project.
     
@@ -148,7 +97,7 @@ def diagnose_environment(project_path: Optional[str] = None) -> str:
         })
     
     # Generate diagnostic report
-    report = generate_diagnostic_report(project_dir)
+    report = await generate_diagnostic_report(project_dir)
     report["timestamp"] = datetime.now().isoformat()
     
     # Add summary
@@ -170,7 +119,7 @@ def diagnose_environment(project_path: Optional[str] = None) -> str:
 
 
 @mcp.tool()
-def repair_environment(project_path: Optional[str] = None, auto_fix: bool = True) -> str:
+async def repair_environment(project_path: Optional[str] = None, auto_fix: bool = True) -> str:
     """
     Attempt to repair common environment issues.
     
@@ -187,115 +136,12 @@ def repair_environment(project_path: Optional[str] = None, auto_fix: bool = True
     Returns:
         JSON string with repair actions taken and results
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
-    
-    if not project_dir.exists():
-        return safe_json_dumps({
-            "error": f"Project directory does not exist: {project_path}",
-            "success": False
-        })
-    
-    # Check if uv is available
-    available, version = check_uv_available()
-    if not available:
-        return safe_json_dumps({
-            "error": "uv is not installed. Please install uv first using the install_uv tool.",
-            "success": False
-        })
-    
-    results = {
-        "project_dir": str(project_dir),
-        "timestamp": datetime.now().isoformat(),
-        "actions": [],
-        "success": True
-    }
-    
-    # Find project root
-    root = find_uv_project_root(project_dir)
-    if root:
-        project_dir = root
-        results["project_root"] = str(root)
-    
-    # Check for pyproject.toml
-    if not (project_dir / "pyproject.toml").exists():
-        if auto_fix:
-            results["actions"].append({
-                "action": "initialize_project",
-                "description": "No pyproject.toml found, initializing new project"
-            })
-            
-            success, stdout, stderr = run_uv_command(["init", "--no-readme"], cwd=project_dir)
-            
-            if success:
-                results["actions"][-1]["status"] = "success"
-                results["actions"][-1]["output"] = stdout
-            else:
-                results["actions"][-1]["status"] = "failed"
-                results["actions"][-1]["error"] = stderr
-                results["success"] = False
-        else:
-            results["actions"].append({
-                "action": "initialize_project",
-                "status": "skipped",
-                "reason": "auto_fix is disabled"
-            })
-    
-    # Check for virtual environment
-    in_venv, venv_path = check_virtual_env()
-    venv_exists = (project_dir / ".venv").exists()
-    
-    if not in_venv and not venv_exists:
-        if auto_fix:
-            results["actions"].append({
-                "action": "create_venv",
-                "description": "Creating virtual environment"
-            })
-            
-            success, stdout, stderr = run_uv_command(["venv"], cwd=project_dir)
-            
-            if success:
-                results["actions"][-1]["status"] = "success"
-                results["actions"][-1]["output"] = "Virtual environment created at .venv"
-            else:
-                results["actions"][-1]["status"] = "failed"
-                results["actions"][-1]["error"] = stderr
-                results["success"] = False
-        else:
-            results["actions"].append({
-                "action": "create_venv",
-                "status": "skipped",
-                "reason": "auto_fix is disabled"
-            })
-    
-    # Sync dependencies if pyproject.toml exists
-    if (project_dir / "pyproject.toml").exists():
-        if auto_fix:
-            results["actions"].append({
-                "action": "sync_dependencies",
-                "description": "Syncing project dependencies"
-            })
-            
-            success, stdout, stderr = run_uv_command(["sync"], cwd=project_dir)
-            
-            if success:
-                results["actions"][-1]["status"] = "success"
-                results["actions"][-1]["output"] = "Dependencies synced successfully"
-            else:
-                results["actions"][-1]["status"] = "failed"
-                results["actions"][-1]["error"] = stderr
-                # Don't mark overall as failed, sync might fail for valid reasons
-        else:
-            results["actions"].append({
-                "action": "sync_dependencies",
-                "status": "skipped",
-                "reason": "auto_fix is disabled"
-            })
-    
+    results = await repair_environment_action(project_path, auto_fix)
     return safe_json_dumps(results)
 
 
 @mcp.tool()
-def add_dependency(
+async def add_dependency(
     package: str,
     project_path: Optional[str] = None,
     dev: bool = False,
@@ -316,62 +162,7 @@ def add_dependency(
     Returns:
         JSON string with operation results
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
-    
-    if not project_dir.exists():
-        return safe_json_dumps({
-            "error": f"Project directory does not exist: {project_path}",
-            "success": False
-        })
-    
-    # Check if uv is available
-    available, version = check_uv_available()
-    if not available:
-        return safe_json_dumps({
-            "error": "uv is not installed. Please install uv first using the install_uv tool.",
-            "success": False
-        })
-    
-    # Find project root
-    root = find_uv_project_root(project_dir)
-    if root:
-        project_dir = root
-    
-    # Check for pyproject.toml
-    if not (project_dir / "pyproject.toml").exists():
-        return safe_json_dumps({
-            "error": "No pyproject.toml found. Initialize a project first using repair_environment.",
-            "success": False
-        })
-    
-    # Build command
-    cmd = ["add", package]
-    
-    if dev:
-        cmd.append("--dev")
-    
-    if optional:
-        cmd.extend(["--optional", optional])
-    
-    # Execute command
-    success, stdout, stderr = run_uv_command(cmd, cwd=project_dir)
-    
-    result = {
-        "package": package,
-        "project_dir": str(project_dir),
-        "timestamp": datetime.now().isoformat(),
-        "success": success,
-        "dev": dev,
-        "optional": optional
-    }
-    
-    if success:
-        result["message"] = f"Successfully added {package}"
-        result["output"] = stdout
-    else:
-        result["message"] = f"Failed to add {package}"
-        result["error"] = stderr
-    
+    result = await add_dependency_action(package, project_path, dev, optional)
     return safe_json_dumps(result)
 
 

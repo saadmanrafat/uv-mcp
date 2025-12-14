@@ -5,6 +5,9 @@
 import json
 import sys
 import platform
+import asyncio
+import inspect
+from pathlib import Path
 
 # Ensure UTF-8 encoding for output on all platforms
 if sys.platform == 'win32':
@@ -14,8 +17,14 @@ if sys.platform == 'win32':
 
 sys.path.insert(0, 'src')
 
-from uv_mcp.uv_utils import check_uv_available, run_uv_command
+from uv_mcp.uv_utils import check_uv_available, get_project_info
 from uv_mcp.diagnostics import generate_diagnostic_report
+from uv_mcp.actions import (
+    repair_environment_action,
+    add_dependency_action,
+    check_uv_installation_action,
+    get_install_instructions_action
+)
 
 
 # Use ASCII-safe symbols for cross-platform compatibility
@@ -30,88 +39,94 @@ def print_section(title: str):
     print(f"{'='*60}\n")
 
 
-def test_check_uv_installation():
-    """Test the check_uv_installation tool."""
+async def test_check_uv_installation():
+    """Test the check_uv_installation action."""
     print_section("Testing: uv installation check")
-    available, version = check_uv_available()
-    print(f"UV installed: {available}")
-    print(f"UV version: {version}")
-    assert available, "uv should be installed"
+    
+    # Test action directly
+    data = await check_uv_installation_action()
+    print(json.dumps(data, indent=2))
+    
+    assert "installed" in data, "Should return installation status"
+    assert data["installed"], "uv should be installed"
+    
     print(f"{CHECK_MARK} Test passed: uv is installed")
 
 
-def test_install_uv():
-    """Test installation instructions."""
+async def test_install_uv():
+    """Test installation instructions action."""
     print_section("Testing: installation instructions")
-    instructions = {
-        "linux_mac": "curl -LsSf https://astral.sh/uv/install.sh | sh",
-        "windows": "powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"",
-        "pip": "pip install uv"
-    }
+    instructions = get_install_instructions_action()
+    
     print("Installation methods available:")
-    for platform, cmd in instructions.items():
-        print(f"  {platform}: {cmd}")
+    for platform_key, cmd in instructions["methods"]["standalone_installer"].items():
+        print(f"  {platform_key}: {cmd['command']}")
     print(f"{CHECK_MARK} Test passed: installation instructions available")
 
 
-def test_diagnose_environment():
-    """Test the diagnose_environment tool."""
+async def test_diagnose_environment():
+    """Test the diagnose_environment logic."""
     print_section("Testing: environment diagnostics")
-    report = generate_diagnostic_report()
+    report = await generate_diagnostic_report()
     print(json.dumps(report, indent=2))
     assert "overall_health" in report, "Should return health status"
     assert report["uv"]["installed"], "uv should be detected"
+    
     print(f"{CHECK_MARK} Test passed: environment health is '{report['overall_health']}'")
 
 
-def test_repair_environment():
-    """Test the repair_environment tool."""
+async def test_repair_environment():
+    """Test the repair_environment action."""
     print_section("Testing: environment repair (dry run)")
-    # Just verify the project structure is valid
-    from pathlib import Path
     project_dir = Path.cwd()
+    
+    # Run with auto_fix=False
+    results = await repair_environment_action(project_path=str(project_dir), auto_fix=False)
+    
+    print(json.dumps(results, indent=2))
+    assert results["success"], "Repair action should return success status"
+    
     has_pyproject = (project_dir / "pyproject.toml").exists()
     has_venv = (project_dir / ".venv").exists()
     
-    print(f"Has pyproject.toml: {has_pyproject}")
-    print(f"Has virtual environment: {has_venv}")
-    
     if has_pyproject and has_venv:
-        print(f"{CHECK_MARK} Test passed: environment is healthy, no repairs needed")
+        print(f"{CHECK_MARK} Test passed: environment is healthy")
     else:
-        print(f"{CHECK_MARK} Test passed: repair would be needed")
+        print(f"{CHECK_MARK} Test passed: repair identified issues")
 
 
-def test_add_dependency():
+async def test_add_dependency():
     """Test dependency addition (dry run)."""
     print_section("Testing: dependency addition (dry run)")
-    # Just verify we can check project info
-    from uv_mcp.uv_utils import get_project_info
+    
     info = get_project_info()
+    
+    # Handle both sync and async implementations for robustness
+    if inspect.isawaitable(info):
+        info = await info
+    
     print(f"Project: {info.get('project_name', 'unknown')}")
     print(f"Dependencies: {len(info.get('dependencies', []))}")
-    print(f"{CHECK_MARK} Test passed: can read project info for dependency management")
+    
+    assert add_dependency_action is not None
+    print(f"{CHECK_MARK} Test passed: dependency management logic is ready")
 
 
-def main():
+async def main_async():
     """Run all tests."""
     print("\n" + "="*60)
     print("  UV-Agent MCP Server - Tool Verification Tests")
     print("="*60)
     
     try:
-        test_check_uv_installation()
-        test_install_uv()
-        test_diagnose_environment()
-        test_repair_environment()
-        test_add_dependency()
+        await test_check_uv_installation()
+        await test_install_uv()
+        await test_diagnose_environment()
+        await test_repair_environment()
+        await test_add_dependency()
         
         print_section(f"All Tests Passed! {CHECK_MARK}")
         print("The UV-Agent MCP server is working correctly.")
-        print("\nYou can now:")
-        print("1. Run the server: uv run uv-mcp")
-        print("2. Configure it in Claude Desktop or Gemini")
-        print("3. Start using the tools through your LLM")
         
     except Exception as e:
         print(f"\n{CROSS_MARK} Test failed: {e}")
@@ -120,6 +135,9 @@ def main():
         return 1
     
     return 0
+
+def main():
+    return asyncio.run(main_async())
 
 
 if __name__ == "__main__":

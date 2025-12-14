@@ -1,36 +1,49 @@
 """Utility functions for interacting with uv."""
 
-import os
+import asyncio
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
 
-def check_uv_available() -> Tuple[bool, Optional[str]]:
+async def check_uv_available() -> Tuple[bool, Optional[str]]:
     """
     Check if uv is installed and available.
     
     Returns:
         Tuple of (is_available, version_string)
     """
+    process = None
     try:
-        result = subprocess.run(
-            ["uv", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
+        # Use shutil.which to find the executable first
+        uv_path = shutil.which("uv")
+        if not uv_path:
+            return False, None
+
+        process = await asyncio.create_subprocess_exec(
+            "uv", "--version",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
-        if result.returncode == 0:
-            version = result.stdout.strip()
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(process.communicate(), timeout=5)
+        
+        if process.returncode == 0:
+            version = stdout_bytes.decode().strip()
             return True, version
         return False, None
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except (asyncio.TimeoutError, FileNotFoundError, OSError):
+        if process:
+            try:
+                if process.returncode is None:
+                    process.kill()
+                await process.communicate()
+            except (ProcessLookupError, OSError):
+                pass
         return False, None
 
 
-def run_uv_command(args: list[str], cwd: Optional[Path] = None) -> Tuple[bool, str, str]:
+async def run_uv_command(args: list[str], cwd: Optional[Path] = None) -> Tuple[bool, str, str]:
     """
     Execute a uv command with given arguments.
     
@@ -41,18 +54,36 @@ def run_uv_command(args: list[str], cwd: Optional[Path] = None) -> Tuple[bool, s
     Returns:
         Tuple of (success, stdout, stderr)
     """
+    process = None
     try:
-        result = subprocess.run(
-            ["uv"] + args,
-            capture_output=True,
-            text=True,
-            cwd=cwd,
-            timeout=60
+        process = await asyncio.create_subprocess_exec(
+            "uv", *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd
         )
-        return result.returncode == 0, result.stdout, result.stderr
-    except subprocess.TimeoutExpired:
-        return False, "", "Command timed out after 60 seconds"
+        # Increase timeout for network/install operations
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(process.communicate(), timeout=120)
+        
+        return process.returncode == 0, stdout_bytes.decode(), stderr_bytes.decode()
+    except asyncio.TimeoutError:
+        if process:
+            try:
+                if process.returncode is None:
+                    process.kill()
+                # Ensure we consume pipes and wait for exit
+                await process.communicate()
+            except (ProcessLookupError, OSError):
+                pass
+        return False, "", "Command timed out after 120 seconds"
     except Exception as e:
+        if process:
+            try:
+                if process.returncode is None:
+                    process.kill()
+                await process.communicate()
+            except (ProcessLookupError, OSError):
+                pass
         return False, "", str(e)
 
 
@@ -101,21 +132,20 @@ def get_project_info(project_dir: Optional[Path] = None) -> dict:
     return info
 
 
-def check_virtual_env() -> Tuple[bool, Optional[str]]:
+def check_project_venv(project_dir: Path) -> Tuple[bool, Optional[str]]:
     """
-    Check if running in a virtual environment.
+    Check if a virtual environment exists in the project directory.
     
+    Args:
+        project_dir: The project directory to check.
+        
     Returns:
-        Tuple of (in_venv, venv_path)
+        Tuple of (exists, venv_path)
     """
-    # Check for virtual environment
-    venv_path = os.environ.get("VIRTUAL_ENV")
-    if venv_path:
-        return True, venv_path
-    
-    # Check if we're in a venv by looking at sys.prefix
-    if sys.prefix != sys.base_prefix:
-        return True, sys.prefix
+    # Standard uv venv location
+    venv_path = project_dir / ".venv"
+    if venv_path.exists() and (venv_path / "pyvenv.cfg").exists():
+        return True, str(venv_path)
     
     return False, None
 
