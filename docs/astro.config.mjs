@@ -13,6 +13,8 @@ export default defineConfig({
 				{
 					icon: 'github',
 					link: 'https://github.com/saadmanrafat/uv-mcp',
+					label: 'GitHub',
+					href: 'https://github.com/saadmanrafat/uv-mcp',
 				},
 			],
 			sidebar: [
