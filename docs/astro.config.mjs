@@ -9,9 +9,12 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'UV-MCP',
-			social: {
-				github: 'https://github.com/saadmanrafat/uv-mcp',
-			},
+			social: [
+				{
+					icon: 'github',
+					link: 'https://github.com/saadmanrafat/uv-mcp',
+				},
+			],
 			sidebar: [
 				{
 					label: 'Guides',
