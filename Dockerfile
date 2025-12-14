@@ -27,7 +27,7 @@ FROM python:3.11-slim as runtime
 # Labels
 LABEL org.opencontainers.image.title="UV-MCP"
 LABEL org.opencontainers.image.description="MCP server for uv - environment diagnostics, repair, and dependency management"
-LABEL org.opencontainers.image.version="0.3.0"
+LABEL org.opencontainers.image.version="0.4.0"
 LABEL org.opencontainers.image.source="https://github.com/saadmanrafat/uv-mcp"
 LABEL org.opencontainers.image.licenses="MIT"
 

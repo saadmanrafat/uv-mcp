@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-12-14
+
+### Added
+- `remove_dependency` tool - Remove packages from pyproject.toml and the environment.
+- `install_python` action in `repair_environment` - Automatically installs the required Python version if missing.
+- Tests for `remove_dependency` and improved test coverage.
+
 ### Fixed
-- Fixed `check_python_version` to correctly detect the project's Python version by running `uv run python --version` instead of reporting the MCP server's Python version.
-- Fixed `check_dependencies` to correctly interpret `uv pip check` output, distinguishing between successful checks with no broken requirements and actual failures.
-- Fixed race conditions and `await` errors in the test suite (`tests/test_uv_mcp.py`, `tests/test_diagnostics_context.py`).
+- Fixed `check_python_version` to correctly detect the project's Python version.
+- Fixed `check_dependencies` to correctly interpret `uv pip check` output.
+- Fixed race conditions and `await` errors in the test suite.
 
 ## [0.1.0] - 2025-12-13
 

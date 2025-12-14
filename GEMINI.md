@@ -71,6 +71,24 @@ Add new dependencies to a Python project.
 - `dev`: Set to `true` for development dependencies
 - `optional`: Optional dependency group name (e.g., "test", "docs")
 
+### 6. remove_dependency
+Remove a dependency from the project.
+
+**What it does:**
+- Removes package from pyproject.toml
+- Updates lockfile automatically
+- Uninstalls the package from the virtual environment
+
+**When to use:**
+- User wants to remove a package
+- Cleaning up unused dependencies
+
+**Parameters:**
+- `package`: Package name (e.g., "requests")
+- `project_path`: Optional path to project directory
+- `dev`: Set to `true` to remove from development dependencies
+- `optional`: Optional dependency group name
+
 ## Best Practices
 
 1. **Always diagnose first**: Before attempting repairs, use `diagnose_environment` to understand what's wrong.

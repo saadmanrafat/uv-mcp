@@ -168,7 +168,40 @@ async def repair_environment_action(project_path: Optional[str] = None, auto_fix
                 "status": "skipped",
                 "reason": "auto_fix is disabled"
             })
-    
+            
+    # Check Python version availability
+    # If we have a venv, check if it works. If not (or if we just created it),
+    # ensure the required python version is installed.
+    # We use 'uv python install' which respects .python-version or requires-python
+    if (project_dir / "pyproject.toml").exists():
+        # Only try to install python if we suspect an issue or just to be safe during repair
+        # A simple check is to see if 'uv run python --version' works
+        py_success, _, _ = await run_uv_command(["run", "python", "--version"], cwd=project_dir)
+        
+        if not py_success:
+            if auto_fix:
+                results["actions"].append({
+                    "action": "install_python",
+                    "description": "Installing/updating Python interpreter"
+                })
+                
+                # 'uv python install'
+                success, stdout, stderr = await run_uv_command(["python", "install"], cwd=project_dir)
+                
+                if success:
+                    results["actions"][-1]["status"] = "success"
+                    results["actions"][-1]["output"] = stdout or "Python interpreter installed/verified"
+                else:
+                    results["actions"][-1]["status"] = "failed"
+                    results["actions"][-1]["error"] = stderr
+                    # Don't fail overall if this fails, might be network issue or already installed but other issue
+            else:
+                results["actions"].append({
+                    "action": "install_python",
+                    "status": "skipped",
+                    "reason": "auto_fix is disabled"
+                })
+
     # Sync dependencies if pyproject.toml exists
     if (project_dir / "pyproject.toml").exists():
         if auto_fix:
@@ -262,6 +295,77 @@ async def add_dependency_action(
         result["output"] = stdout
     else:
         result["message"] = f"Failed to add {package}"
+        result["error"] = stderr
+    
+    return result
+
+
+async def remove_dependency_action(
+    package: str,
+    project_path: Optional[str] = None,
+    dev: bool = False,
+    optional: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Remove a dependency from the project.
+    
+    Returns:
+        Dictionary with operation results
+    """
+    project_dir = Path(project_path) if project_path else Path.cwd()
+    
+    if not project_dir.exists():
+        return {
+            "error": f"Project directory does not exist: {project_path}",
+            "success": False
+        }
+    
+    # Check if uv is available
+    available, version = await check_uv_available()
+    if not available:
+        return {
+            "error": "uv is not installed. Please install uv first using the install_uv tool.",
+            "success": False
+        }
+    
+    # Find project root
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+    
+    # Check for pyproject.toml
+    if not (project_dir / "pyproject.toml").exists():
+        return {
+            "error": "No pyproject.toml found.",
+            "success": False
+        }
+    
+    # Build command
+    cmd = ["remove", package]
+    
+    if dev:
+        cmd.append("--dev")
+    
+    if optional:
+        cmd.extend(["--optional", optional])
+    
+    # Execute command
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+    
+    result = {
+        "package": package,
+        "project_dir": str(project_dir),
+        "timestamp": datetime.now().isoformat(),
+        "success": success,
+        "dev": dev,
+        "optional": optional
+    }
+    
+    if success:
+        result["message"] = f"Successfully removed {package}"
+        result["output"] = stdout
+    else:
+        result["message"] = f"Failed to remove {package}"
         result["error"] = stderr
     
     return result

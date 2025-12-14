@@ -30,6 +30,7 @@ Automatically fix common environment issues:
 - Initialize new project with pyproject.toml
 - Sync dependencies from lockfile
 - Update outdated packages
+- Install missing Python interpreter
 
 ### **add_dependency**
 Add new dependencies to your project:
@@ -37,6 +38,12 @@ Add new dependencies to your project:
 - Development dependencies
 - Optional dependency groups
 - Automatic pyproject.toml and lockfile updates
+
+### **remove_dependency**
+Remove dependencies from your project:
+- Removes from pyproject.toml
+- Updates lockfile
+- Uninstalls from virtual environment
 
 ## Installation
 
@@ -275,6 +282,16 @@ Returns installation instructions for all platforms.
 - `project_path`: Path to project directory (optional)
 - `dev`: Add as development dependency (default: False)
 - `optional`: Optional dependency group name (e.g., "test", "docs")
+
+**Returns:** Operation result with success status and output.
+
+### remove_dependency(package: str, project_path: Optional[str] = None, dev: bool = False, optional: Optional[str] = None)
+
+**Parameters:**
+- `package`: Package name (e.g., "requests")
+- `project_path`: Path to project directory (optional)
+- `dev`: Remove from development dependencies (default: False)
+- `optional`: Optional dependency group name
 
 **Returns:** Operation result with success status and output.
 

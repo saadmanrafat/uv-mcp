@@ -11,6 +11,7 @@ from .diagnostics import generate_diagnostic_report
 from .actions import (
     repair_environment_action,
     add_dependency_action,
+    remove_dependency_action,
     check_uv_installation_action,
     get_install_instructions_action
 )
@@ -163,6 +164,32 @@ async def add_dependency(
         JSON string with operation results
     """
     result = await add_dependency_action(package, project_path, dev, optional)
+    return safe_json_dumps(result)
+
+
+@mcp.tool()
+async def remove_dependency(
+    package: str,
+    project_path: Optional[str] = None,
+    dev: bool = False,
+    optional: Optional[str] = None
+) -> str:
+    """
+    Remove a dependency from the project.
+    
+    This tool uses 'uv remove' to remove a package from the project's dependencies.
+    It automatically updates pyproject.toml and the lockfile.
+    
+    Args:
+        package: Package name (e.g., "requests")
+        project_path: Path to the project directory (defaults to current directory)
+        dev: Whether to remove from development dependencies (default: False)
+        optional: Optional dependency group name (e.g., "test", "docs")
+    
+    Returns:
+        JSON string with operation results
+    """
+    result = await remove_dependency_action(package, project_path, dev, optional)
     return safe_json_dumps(result)
 
 
