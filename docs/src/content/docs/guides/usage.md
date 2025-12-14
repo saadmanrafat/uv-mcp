@@ -1,13 +1,63 @@
 ---
 title: Usage Guide
-description: Common workflows and usage examples
+description: detailed usage instructions for different clients
 ---
 
 # Usage Guide
 
 Once UV-MCP is installed, you can interact with it through your AI assistant using natural language.
 
-## Diagnosing Your Environment
+## Clients
+
+### Gemini CLI
+
+If you installed UV-MCP as a Gemini extension, no further configuration is needed.
+
+**Start a session:**
+```bash
+gemini chat
+```
+
+**Verify tools:**
+Ask the model:
+> "What tools do you have available?"
+
+It should list `diagnose_environment`, `repair_environment`, and others.
+
+### Claude Desktop
+
+Ensure you have added the configuration to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "uv-mcp": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/uv-mcp",
+        "run",
+        "uv-mcp"
+      ]
+    }
+  }
+}
+```
+
+Restart Claude Desktop completely for changes to take effect. Look for the plug icon to verify the server is connected.
+
+### Claude Code (CLI)
+
+You can run UV-MCP temporarily or permanently with Claude Code.
+
+**Per-session:**
+```bash
+claude mcp add uv-mcp --scope user -- uv --directory /path/to/uv-mcp run uv-mcp
+```
+
+## Common Workflows
+
+### Diagnosing Your Environment
 
 If you suspect something is wrong with your Python setup, simply ask:
 
@@ -20,7 +70,7 @@ The AI will use the `diagnose_environment` tool to check:
 *   Is the virtual environment active and valid?
 *   Are there dependency conflicts?
 
-## Repairing Issues
+### Repairing Issues
 
 If issues are found, you can ask the AI to fix them:
 
@@ -33,7 +83,7 @@ The `repair_environment` tool can:
 *   Sync dependencies from `uv.lock`.
 *   Install the correct Python interpreter version.
 
-## Managing Dependencies
+### Managing Dependencies
 
 You can add or remove packages without remembering the exact CLI commands.
 

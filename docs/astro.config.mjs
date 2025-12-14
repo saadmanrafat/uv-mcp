@@ -25,6 +25,8 @@ export default defineConfig({
 						{ label: 'Introduction', link: '/guides/introduction/' },
 						{ label: 'Installation', link: '/guides/installation/' },
 						{ label: 'Usage', link: '/guides/usage/' },
+						{ label: 'Architecture', link: '/guides/architecture/' },
+						{ label: 'Contributing', link: '/guides/contributing/' },
 					],
 				},
 				{
