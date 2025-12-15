@@ -12,9 +12,8 @@ export default defineConfig({
 			social: [
 				{
 					icon: 'github',
-					link: 'https://github.com/saadmanrafat/uv-mcp',
-					label: 'GitHub',
 					href: 'https://github.com/saadmanrafat/uv-mcp',
+					label: 'GitHub',
 				},
 			],
 			sidebar: [
@@ -22,22 +21,22 @@ export default defineConfig({
 					label: 'Guides',
 					items: [
 						// Each item here is one entry in the navigation menu.
-						{ label: 'Introduction', link: '/guides/introduction/' },
-						{ label: 'Installation', link: '/guides/installation/' },
-						{ label: 'Usage', link: '/guides/usage/' },
+						{ label: 'Introduction', link: '/uv-mcp/guides/introduction/' },
+						{ label: 'Installation', link: '/uv-mcp/guides/installation/' },
+						{ label: 'Usage', link: '/uv-mcp/guides/usage/' },
 					],
 				},
 				{
 					label: 'Concepts',
 					items: [
-						{ label: 'MCP and Extensions', link: '/guides/concepts/mcp-and-extensions/' },
+						{ label: 'MCP and Extensions', link: '/uv-mcp/guides/concepts/mcp-and-extensions/' },
 					],
 				},
 				{
 					label: 'Development',
 					items: [
-						{ label: 'Architecture', link: '/guides/architecture/' },
-						{ label: 'Contributing', link: '/guides/contributing/' },
+						{ label: 'Architecture', link: '/uv-mcp/guides/architecture/' },
+						{ label: 'Contributing', link: '/uv-mcp/guides/contributing/' },
 					],
 				},
 				{
