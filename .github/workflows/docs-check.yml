@@ -6,15 +6,17 @@ on:
     paths:
       - 'docs/**'
       - 'scripts/check_docs.py'
+      - '.github/workflows/docs-check.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'docs/**'
       - 'scripts/check_docs.py'
+      - '.github/workflows/docs-check.yml'
   workflow_dispatch:
 
 jobs:
-  check-docs:
+  check-content:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,5 +27,21 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run Docs Check
+      - name: Run Custom Checks (Emojis & Internal Links)
         run: python3 scripts/check_docs.py
+
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Link Checker (Lychee)
+        uses: lycheeverse/lychee-action@v1.9.3
+        with:
+          # Check all markdown files in docs/
+          args: --verbose --no-progress "docs/**/*.md" "docs/**/*.mdx" --exclude "node_modules" --exclude "dist"
+          # Fail the action on broken links
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
