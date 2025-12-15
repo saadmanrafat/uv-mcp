@@ -1,47 +1,59 @@
 ---
 title: Architecture
-description: Overview of the UV-MCP codebase architecture
+description: Overview of the UV-MCP codebase and design.
 ---
 
 # Architecture
 
-This document provides a high-level overview of the UV-MCP codebase to help contributors understand how the project is structured.
+This document provides a high-level overview of the UV-MCP codebase to help developers understand how it works and where to find things.
 
-## Directory Structure
+## Code Layout
 
-```
-uv-mcp/
-├── src/
-│   └── uv_mcp/
-│       ├── __init__.py
-│       ├── server.py          # Entry point and tool definitions
-│       ├── actions.py         # Implementation of tool logic
-│       ├── diagnostics.py     # Logic for environment health checks
-│       └── uv_utils.py        # Low-level wrappers for uv CLI commands
-├── tests/                     # Pytest test suite
-├── docs/                      # Astro Starlight documentation
-├── gemini-extension.json      # Manifest for Gemini CLI extension
-├── pyproject.toml             # Project metadata and dependencies
-└── Dockerfile                 # Container definition
+The source code is located in `src/uv_mcp/`. Here is the structure:
+
+```text
+src/uv_mcp/
+├── __init__.py
+├── server.py         # Entry point and tool definitions
+├── actions.py        # Implementation of tool logic
+├── diagnostics.py    # Environment health check logic
+├── project_tools.py  # Class-based tools (init, sync, export)
+└── uv_utils.py       # Low-level wrappers for 'uv' CLI
 ```
 
 ## Component Summary
 
-### `server.py`
-The main entry point for the application. It initializes the `FastMCP` server and defines the `@mcp.tool()` decorators. It handles the JSON serialization of responses but delegates the actual business logic to `actions.py`.
+### 1. Server (`server.py`)
+This is the heart of the application. It initializes the `FastMCP` server and defines the tools exposed to the AI.
+-   **Responsibility**: Routing MCP requests to the appropriate internal functions.
+-   **Key Libraries**: `fastmcp`.
 
-### `actions.py`
-Contains the "business logic" for each tool. It orchestrates calls to `uv_utils.py` and formats the results into structured dictionaries. For example, `repair_environment_action` decides *which* repairs to run based on the current state.
+### 2. Actions (`actions.py`)
+Contains the core "business logic" for environment modifications.
+-   **Functions**: `repair_environment_action`, `add_dependency_action`, etc.
+-   **Responsibility**: Orchestrating checks and command executions to perform a user request.
 
-### `diagnostics.py`
-Dedicated to the `diagnose_environment` tool. It performs read-only analysis of the project directory. It checks file existence, parses `pyproject.toml`, and runs `uv pip check` to find dependency conflicts.
+### 3. Diagnostics (`diagnostics.py`)
+Implements the read-only logic for analyzing the project state.
+-   **Responsibility**: parsing `pyproject.toml`, checking `.venv`, verifying Python versions, and generating the JSON health report.
 
-### `uv_utils.py`
-The lowest layer of the stack. It uses `asyncio.create_subprocess_exec` to run the actual `uv` binary. It handles `stdout/stderr` capture, timeouts, and basic error handling. It has no knowledge of MCP; it just knows how to run CLI commands.
+### 4. Utilities (`uv_utils.py`)
+A wrapper around Python's `asyncio.subprocess`.
+-   **Responsibility**: Executing `uv` shell commands safely, handling timeouts, and capturing stdout/stderr.
+
+### 5. Project Tools (`project_tools.py`)
+Encapsulates operations related to project lifecycle, like initialization and exporting.
+
+## Data Flow
+
+1.  **Request**: The generic MCP client sends a JSON-RPC request (e.g., `call_tool("add_dependency", {"package": "numpy"})`).
+2.  **Server**: `server.py` receives the request and calls `add_dependency`.
+3.  **Action**: `actions.py` validates the request (checks for `pyproject.toml`).
+4.  **Execution**: `uv_utils.py` spawns a subprocess `uv add numpy`.
+5.  **Response**: The subprocess output is captured, formatted as JSON, and returned to the client.
 
 ## Design Principles
 
-1.  **Statelessness**: The server does not maintain persistent state between tool calls. Each call analyzes the directory fresh.
-2.  **Safety**: Destructive actions (like `uv init` or `uv remove`) are always explicit user actions via tools.
-3.  **Idempotency**: Repair actions attempt to be idempotent. Running `repair_environment` twice should not break a healthy environment.
-4.  **Async/Await**: All I/O operations (file system, subprocesses) are asynchronous to ensure the server remains responsive.
+-   **Safety**: We try to validate project paths before running commands.
+-   **Transparency**: We prefer returning detailed JSON responses so the AI can interpret errors intelligently.
+-   **Fallback**: Diagnostics try to handle missing files or partial setups gracefully.

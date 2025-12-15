@@ -25,6 +25,17 @@ export default defineConfig({
 						{ label: 'Introduction', link: '/guides/introduction/' },
 						{ label: 'Installation', link: '/guides/installation/' },
 						{ label: 'Usage', link: '/guides/usage/' },
+					],
+				},
+				{
+					label: 'Concepts',
+					items: [
+						{ label: 'MCP and Extensions', link: '/guides/concepts/mcp-and-extensions/' },
+					],
+				},
+				{
+					label: 'Development',
+					items: [
 						{ label: 'Architecture', link: '/guides/architecture/' },
 						{ label: 'Contributing', link: '/guides/contributing/' },
 					],

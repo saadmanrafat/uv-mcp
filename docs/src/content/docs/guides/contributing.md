@@ -1,63 +1,59 @@
 ---
 title: Contributing
-description: Guide for contributing to UV-MCP
+description: How to contribute to the UV-MCP open source project.
 ---
 
 # Contributing
 
-Thank you for your interest in contributing to UV-Agent! We welcome contributions from the community.
+We welcome contributions! Whether you're fixing a bug, adding a new feature, or improving documentation, your help is appreciated.
 
-## Development Setup
+## Getting Started
 
-1.  **Fork and clone the repository**:
+1.  **Fork the repository** on GitHub.
+2.  **Clone your fork**:
     ```bash
-    git clone https://github.com/saadmanrafat/uv-mcp
+    git clone https://github.com/your-username/uv-mcp
     cd uv-mcp
     ```
-
-2.  **Install dependencies**:
-    We use `uv` for dependency management.
+3.  **Install dependencies** using `uv`:
     ```bash
     uv sync
     ```
 
-3.  **Link for Gemini CLI (Optional)**:
-    If you are developing for Gemini CLI, you can link your local version:
-    ```bash
-    gemini extensions link .
-    ```
+## Development Environment
 
-## Running Tests
+We use `uv` for dependency management and `pytest` for testing.
 
-We use `pytest` for our test suite. All changes must pass existing tests, and new features should include new tests.
+### Running Tests
+
+Run the test suite to ensure everything is working:
 
 ```bash
-# Run the full test suite
-uv run pytest tests/ -v
-
-# Run with coverage report
-uv run pytest tests/ --cov=uv_mcp
+uv run pytest
 ```
 
-## Making Changes
+Or run the specific tool test script:
 
-1.  **Create a Branch**: Always work on a feature branch (`feat/new-tool`, `fix/bug-name`).
-2.  **Edit Code**:
-    *   `src/uv_mcp/server.py`: Add new tool definitions here.
-    *   `src/uv_mcp/actions.py`: Implement the logic here.
-3.  **Add Tests**: Update `tests/` with unit tests for your changes.
-4.  **Verify**: Run `uv run pytest` to ensure no regressions.
+```bash
+uv run python test_tools.py
+```
 
-## Submitting a Pull Request
+## Adding a New Tool
 
-1.  Push your branch to your fork.
-2.  Open a Pull Request against the `main` branch.
-3.  Describe your changes clearly in the PR description.
-4.  Ensure the CI/CD pipeline passes.
+1.  **Define the Logic**: Add the implementation function in `src/uv_mcp/actions.py` or a new module.
+2.  **Expose the Tool**: Add the `@mcp.tool()` decorator in `src/uv_mcp/server.py` and call your implementation.
+3.  **Add Tests**: specific unit tests in `tests/`.
+4.  **Update Documentation**: Add the tool to `docs/src/content/docs/reference/tools.md`.
 
-## Style Guide
+## Pull Request Process
 
-*   Follow PEP 8 guidelines.
-*   Use type hints for all function arguments and return values.
-*   Include docstrings (Google style or standard) for all public functions.
-*   Keep functions small and focused on a single task.
+1.  Create a feature branch: `git checkout -b feature/my-cool-feature`.
+2.  Commit your changes with clear messages.
+3.  Push to your fork and submit a Pull Request.
+4.  Wait for review!
+
+## Code Style
+
+-   Follow standard Python PEP 8 conventions.
+-   Use type hints (`mypy` compatible).
+-   Include docstrings for all public functions.

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-12-15
+
+### Documentation
+- Added comprehensive user documentation powered by Astro Starlight.
+- Added Usage Guide, Installation Guide, Architecture Overview, and Tool Reference.
+- Enabled search functionality in the documentation site.
+
+### Changed
+- Removed unicode characters (emojis) from tool output messages for better compatibility.
+- Improved error handling in `project_tools.py` with `try-except` blocks.
+- Fixed typo in `init_project` method name.
+- Updated documentation build workflow to prevent concurrent deployment conflicts.
+
 ## [0.4.0] - 2025-12-14
 
 ### Added

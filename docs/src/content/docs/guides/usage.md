@@ -1,114 +1,93 @@
 ---
 title: Usage Guide
-description: detailed usage instructions for different clients
+description: Learn how to interact with UV-MCP to manage your Python projects.
 ---
 
 # Usage Guide
 
-Once UV-MCP is installed, you can interact with it through your AI assistant using natural language.
+Once UV-MCP is installed and connected to your AI agent, you can interact with it using natural language. This guide covers common workflows and example prompts.
 
-## Clients
+## Basic Diagnostics
 
-### Gemini CLI
+The most powerful feature of UV-MCP is its ability to diagnose the current environment.
 
-If you installed UV-MCP as a Gemini extension, no further configuration is needed.
+**Prompt:**
+> "Diagnose my environment."
+> "Why is my python setup broken?"
 
-**Start a session:**
-```bash
-gemini chat
-```
+**What happens:**
+The agent calls `diagnose_environment`. It checks:
+- If `uv` is installed.
+- If a `pyproject.toml` or `requirements.txt` exists.
+- If a virtual environment (`.venv`) exists and is active.
+- If dependencies are in sync with the lockfile.
+- If the Python version matches project requirements.
 
-**Verify tools:**
-Ask the model:
-> "What tools do you have available?"
+## Auto-Repair
 
-It should list `diagnose_environment`, `repair_environment`, and others.
+If diagnostics find issues, the agent can often fix them automatically.
 
-### Claude Desktop
+**Prompt:**
+> "Fix my environment."
+> "Repair the project setup."
 
-Ensure you have added the configuration to your `claude_desktop_config.json`:
+**What happens:**
+The agent calls `repair_environment`. It attempts to:
+1.  Initialize a project if missing.
+2.  Create a virtual environment.
+3.  Install a compatible Python version.
+4.  Sync dependencies.
 
-```json
-{
-  "mcpServers": {
-    "uv-mcp": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/uv-mcp",
-        "run",
-        "uv-mcp"
-      ]
-    }
-  }
-}
-```
+## Managing Dependencies
 
-Restart Claude Desktop completely for changes to take effect. Look for the plug icon to verify the server is connected.
+You can add or remove packages without remembering exact CLI flags.
 
-### Claude Code (CLI)
+### Adding Packages
 
-You can run UV-MCP temporarily or permanently with Claude Code.
-
-**Per-session:**
-```bash
-claude mcp add uv-mcp --scope user -- uv --directory /path/to/uv-mcp run uv-mcp
-```
-
-## Common Workflows
-
-### Diagnosing Your Environment
-
-If you suspect something is wrong with your Python setup, simply ask:
-
-> "Diagnose my Python environment."
-> "Why isn't my project working?"
-
-The AI will use the `diagnose_environment` tool to check:
-*   Is `uv` installed?
-*   Does `pyproject.toml` exist?
-*   Is the virtual environment active and valid?
-*   Are there dependency conflicts?
-
-### Repairing Issues
-
-If issues are found, you can ask the AI to fix them:
-
-> "Fix the environment issues."
-> "Repair my project setup."
-
-The `repair_environment` tool can:
-*   Create a missing `.venv`.
-*   Initialize a new project structure.
-*   Sync dependencies from `uv.lock`.
-*   Install the correct Python interpreter version.
-
-### Managing Dependencies
-
-You can add or remove packages without remembering the exact CLI commands.
-
-**Adding packages:**
-> "Add requests and pandas to the project."
+**Prompt:**
+> "Add pandas to this project."
 > "Install pytest as a dev dependency."
+> "Add fastapi and uvicorn."
 
-**Removing packages:**
-> "Remove numpy from dependencies."
-> "Uninstall black."
+**What happens:**
+The agent uses `add_dependency`.
+- `uv add pandas`
+- `uv add --dev pytest`
 
-## Example Session
+### Removing Packages
 
-**User**: "I want to start a new data science project here."
+**Prompt:**
+> "Remove numpy."
+> "Uninstall the requests library."
 
-**Model**: "I'll check the current directory status."
-*(Calls `diagnose_environment` -> finds empty directory)*
-"The directory is empty. Shall I set up a new Python project for you?"
+**What happens:**
+The agent uses `remove_dependency`.
 
-**User**: "Yes, please."
+## Project Initialization
 
-**Model**: *(Calls `repair_environment`)*
-"I've initialized a new project with `pyproject.toml` and created a virtual environment."
+Starting a new project is easy.
 
-**User**: "Add pandas and matplotlib."
+**Prompt:**
+> "Initialize a new Python app named 'my-bot'."
+> "Create a new library project called 'utils'."
 
-**Model**: *(Calls `add_dependency` for pandas and matplotlib)*
-"Added `pandas` and `matplotlib` to your project dependencies."
+**What happens:**
+The agent uses `init_project`.
+- `uv init --app --name my-bot`
+
+## Advanced Workflows
+
+### Syncing and Locking
+
+If you suspect your lockfile is out of date:
+
+**Prompt:**
+> "Sync the environment."
+> "Ensure the lockfile is up to date."
+
+### Exporting Requirements
+
+If you need a `requirements.txt` for legacy systems:
+
+**Prompt:**
+> "Export the dependencies to requirements.txt."

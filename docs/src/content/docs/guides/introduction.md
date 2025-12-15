@@ -1,46 +1,36 @@
 ---
 title: Introduction
-description: Overview of UV-MCP, MCP, and Gemini Extensions
+description: Welcome to UV-MCP, the AI-powered interface for the uv package manager.
 ---
 
 # Introduction
 
-**UV-MCP** is a Model Context Protocol (MCP) server designed to bridge the gap between AI assistants (like Gemini and Claude) and your Python development environment.
+**UV-MCP** is a Model Context Protocol (MCP) server that empowers your AI assistants to manage Python environments using **uv**, the incredibly fast Python package manager written in Rust.
 
-It leverages the speed and efficiency of **[uv](https://docs.astral.sh/uv/)**, the extremely fast Python package manager written in Rust.
+## What is UV-MCP?
 
-## What is MCP?
+UV-MCP acts as a bridge between Large Language Models (LLMs) like Claude or Gemini and your local Python development environment. Instead of manually typing terminal commands to install packages, fix virtual environments, or resolve dependency conflicts, you can simply ask your AI to do it for you.
 
-The **Model Context Protocol (MCP)** is an open standard that enables AI models to interact with external tools and data sources. Instead of hardcoding integrations into the AI model itself, MCP allows developers to build "servers" (like UV-MCP) that expose specific capabilities.
+## Why use UV-MCP?
 
-In this case, UV-MCP exposes tools to:
-*   Read your project structure.
-*   Run `uv` commands.
-*   Analyze environment health.
+Managing Python environments can be complex. `uv` simplifies this with speed and correctness, and UV-MCP takes it a step further by giving your AI agent direct access to these capabilities.
 
-Your AI client (like Claude Desktop or Gemini CLI) connects to this server, allowing the AI to "see" and "touch" your Python environment securely.
+### Key Benefits
 
-## What are Extensions?
+- **⚡ Lightning Fast**: Leverages `uv`'s performance for near-instant package installations and resolutions.
+- **🤖 AI-Native**: Designed specifically for MCP-compliant agents, allowing for natural language interaction.
+- **🛠️ Self-Healing**: Includes diagnostic tools that can automatically identify and repair broken environments (missing venvs, desynced lockfiles, etc.).
+- **📦 Effortless Management**: Add, remove, and update dependencies without leaving your chat context.
 
-In the context of the **Gemini CLI**, an "Extension" is a package that bundles an MCP server with configuration that makes it easy to install and use.
+## What can it do?
 
-When you install the UV-MCP extension:
-1.  The Gemini CLI downloads the UV-MCP package.
-2.  It registers the MCP server in its configuration.
-3.  It automatically manages the server's lifecycle (starting/stopping it when needed).
+- **Diagnose Health**: instantly check if your project structure, virtual environment, and dependencies are healthy.
+- **Repair Environments**: Automatically fix common issues like missing virtual environments or uninstalled dependencies.
+- **Manage Dependencies**: Add or remove libraries with simple prompts like "Add pandas to this project".
+- **Initialize Projects**: Bootstrap new Python projects with best practices in seconds.
 
-This seamless integration means you don't have to manually configure ports or connection strings. You just install it, and your AI assistant immediately gains new powers.
+## Next Steps
 
-## Why UV-MCP?
-
-Managing Python environments can be complex. Dependency conflicts, broken virtual environments, and configuration mismatches are common headaches. UV-MCP allows your AI assistant to:
-
-*   **Diagnose** issues automatically.
-*   **Repair** broken environments without manual intervention.
-*   **Manage** dependencies using natural language.
-
-## Core Capabilities
-
-*   **Environment Health Checks**: Validates `pyproject.toml`, virtualenvs, and lockfiles.
-*   **Automated Repairs**: Can initialize projects, create venvs, and sync dependencies.
-*   **Dependency Management**: Add or remove packages, including dev dependencies and optional groups.
+- **[Installation](/uv-mcp/guides/installation)**: Get UV-MCP running on your system.
+- **[Usage Guide](/uv-mcp/guides/usage)**: Learn how to interact with the tools.
+- **[Architecture](/uv-mcp/guides/architecture)**: Understand how it works under the hood.

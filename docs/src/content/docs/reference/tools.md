@@ -1,86 +1,73 @@
 ---
 title: Tool Reference
-description: API reference for UV-MCP tools
+description: Complete reference of all tools available in UV-MCP.
 ---
 
 # Tool Reference
 
-These are the tools exposed by the UV-MCP server.
+This section lists all the tools exposed by the UV-MCP server.
 
-## `check_uv_installation`
+## Environment Management
 
+### `check_uv_installation`
 Checks if `uv` is installed on the system and returns version information.
+-   **Parameters**: None
+-   **Returns**: JSON object with `installed` (bool) and `version` (string).
 
-**Returns:**
-```json
-{
-  "installed": boolean,
-  "version": string | null,
-  "message": string
-}
-```
+### `install_uv`
+Provides instructions on how to install `uv` for various platforms.
+-   **Parameters**: None
+-   **Returns**: JSON with installation command strings.
 
-## `install_uv`
+### `diagnose_environment`
+Analyzes the health of the current Python project.
+-   **Parameters**:
+    -   `project_path` (optional, string): Path to project root. Defaults to current directory.
+-   **Returns**: Comprehensive JSON report including project structure, dependency health, and Python compatibility.
 
-Returns platform-specific installation instructions for `uv`. This tool does not install `uv` automatically for security reasons; it provides the correct commands for the user to run.
+### `repair_environment`
+Attempts to automatically fix common issues found by diagnostics.
+-   **Parameters**:
+    -   `project_path` (optional, string): Path to project root.
+    -   `auto_fix` (optional, bool): If `true`, applies changes. If `false`, only lists plan. Default: `true`.
+-   **Returns**: JSON report of actions taken (e.g., created venv, synced deps).
 
-## `diagnose_environment`
+### `sync_environment`
+Syncs the environment with `pyproject.toml` or `uv.lock`.
+-   **Parameters**:
+    -   `upgrade` (optional, bool): Upgrade all packages.
+    -   `locked` (optional, bool): Assert lockfile consistency.
+-   **Returns**: Command output.
 
-Performs a comprehensive health check of the Python environment.
+## Dependency Management
 
-**Parameters:**
+### `add_dependency`
+Adds a package to the project.
+-   **Parameters**:
+    -   `package` (required, string): Name of package (e.g., "pandas", "requests>=2.0").
+    -   `dev` (optional, bool): Add as a development dependency.
+    -   `optional` (optional, string): Add to an optional group.
+-   **Returns**: Success/failure message.
 
-| Name | Type | Description |
-| :--- | :--- | :--- |
-| `project_path` | `string` (optional) | Path to the project directory. Defaults to CWD. |
+### `remove_dependency`
+Removes a package from the project.
+-   **Parameters**:
+    -   `package` (required, string): Name of package.
+    -   `dev` (optional, bool): Remove from dev dependencies.
+-   **Returns**: Success/failure message.
 
-**Returns:** A JSON object containing health status, issues, warnings, and project structure details.
+### `export_requirements`
+Exports the current locked dependencies to a standard format.
+-   **Parameters**:
+    -   `output_file` (optional, string): Filename. Default: "requirements.txt".
+-   **Returns**: Confirmation message.
 
-**Checks performed:**
-*   **UV**: Installation and version.
-*   **Structure**: Existence of `pyproject.toml`, `requirements.txt`, `.venv`, and `uv.lock`.
-*   **Dependencies**: Conflicts (via `uv pip check`) and install count.
-*   **Python**: Version compatibility checking against `requires-python`.
+## Project Lifecycle
 
-## `repair_environment`
-
-Attempts to automatically fix common environment issues.
-
-**Parameters:**
-
-| Name | Type | Description |
-| :--- | :--- | :--- |
-| `project_path` | `string` (optional) | Path to the project directory. |
-| `auto_fix` | `boolean` | Whether to automatically apply fixes. Defaults to `true`. |
-
-**Actions:**
-*   **Create venv**: Runs `uv venv` if `.venv` is missing.
-*   **Initialize project**: Runs `uv init` if `pyproject.toml` is missing.
-*   **Sync dependencies**: Runs `uv sync` if `pyproject.toml` exists.
-*   **Install Python**: Runs `uv python install` if the interpreter is missing or broken.
-
-## `add_dependency`
-
-Adds a new dependency to the project.
-
-**Parameters:**
-
-| Name | Type | Description |
-| :--- | :--- | :--- |
-| `package` | `string` | Package name (e.g., "requests", "fastapi>=0.100"). |
-| `project_path` | `string` (optional) | Path to the project directory. |
-| `dev` | `boolean` | Add as a development dependency (`--dev`). |
-| `optional` | `string` (optional) | Add to an optional dependency group (`--optional`). |
-
-## `remove_dependency`
-
-Removes a dependency from the project.
-
-**Parameters:**
-
-| Name | Type | Description |
-| :--- | :--- | :--- |
-| `package` | `string` | Package name to remove. |
-| `project_path` | `string` (optional) | Path to the project directory. |
-| `dev` | `boolean` | Remove from development dependencies (`--dev`). |
-| `optional` | `string` (optional) | Remove from an optional dependency group (`--optional`). |
+### `init_project`
+Initialize a new Python project.
+-   **Parameters**:
+    -   `name` (required, string): Project name.
+    -   `template` (optional, string): "app" or "lib". Default "app".
+    -   `python_version` (optional, string): e.g., "3.12".
+-   **Returns**: Success message.

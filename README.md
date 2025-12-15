@@ -8,6 +8,15 @@
 
 A Model Context Protocol (MCP) server for `uv` - the fast Python package manager. UV-mcp provides environment diagnostics, repair capabilities, and dependency management through a Gemini CLI extension.
 
+## 📚 Documentation
+
+**[Read the full documentation here](https://saadman.dev/uv-mcp/)**
+
+The documentation includes:
+- [Installation Guide](https://saadman.dev/uv-mcp/guides/installation/)
+- [Usage Instructions](https://saadman.dev/uv-mcp/guides/usage/)
+- [Architecture Overview](https://saadman.dev/uv-mcp/guides/architecture/)
+
 ## Features
 
 UV-mcp exposes 5 powerful tools for managing Python environments:
