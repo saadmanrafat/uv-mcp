@@ -17,10 +17,10 @@ Managing Python environments can be complex. `uv` simplifies this with speed and
 
 ### Key Benefits
 
-- **⚡ Lightning Fast**: Leverages `uv`'s performance for near-instant package installations and resolutions.
-- **🤖 AI-Native**: Designed specifically for MCP-compliant agents, allowing for natural language interaction.
-- **🛠️ Self-Healing**: Includes diagnostic tools that can automatically identify and repair broken environments (missing venvs, desynced lockfiles, etc.).
-- **📦 Effortless Management**: Add, remove, and update dependencies without leaving your chat context.
+- **Lightning Fast**: Leverages `uv`'s performance for near-instant package installations and resolutions.
+- **AI-Native**: Designed specifically for MCP-compliant agents, allowing for natural language interaction.
+- **Self-Healing**: Includes diagnostic tools that can automatically identify and repair broken environments (missing venvs, desynced lockfiles, etc.).
+- **Effortless Management**: Add, remove, and update dependencies without leaving your chat context.
 
 ## What can it do?
 
