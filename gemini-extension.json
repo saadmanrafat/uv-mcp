@@ -2,6 +2,7 @@
     "name": "uv-mcp",
     "version": "0.5.1",
     "description": "Bridge modern, reproducible Python environments with MCP agents. Diagnose, self-heal, and manage uv workflows",
+    "icon": "ext/uv_mcp_logo.png",
     "keywords": [
         "python",
         "uv",
