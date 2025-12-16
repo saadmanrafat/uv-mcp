@@ -1,7 +1,20 @@
 {
     "name": "uv-mcp",
-    "version": "0.5.0",
-    "description": "MCP server for uv - environment diagnostics, repair, and dependency management",
+    "version": "0.5.1",
+    "description": "Bridge modern, reproducible Python environments with MCP agents. Diagnose, self-heal, and manage uv workflows",
+    "keywords": [
+        "python",
+        "uv",
+        "pip",
+        "devops",
+        "agent",
+        "automation"
+    ],
+    "author": "Saadman Rafat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/saadmanrafat/uv-mcp"
+    },
     "mcpServers": {
         "uv-mcp": {
             "command": "uv",
@@ -13,7 +26,7 @@
             ],
             "cwd": "${extensionPath}",
             "env": {
-                "PATH": "${PATH}:${HOME}/.local/bin"
+                "PATH": "${PATH}:${HOME}/.local/bin:${HOME}/.cargo/bin"
             }
         }
     }
