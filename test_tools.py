@@ -17,7 +17,7 @@ if sys.platform == 'win32':
 
 sys.path.insert(0, 'src')
 
-from uv_mcp.uv_utils import check_uv_available, get_project_info
+from uv_mcp.utils import check_uv_available, get_project_info
 from uv_mcp.diagnostics import generate_diagnostic_report
 from uv_mcp.actions import (
     repair_environment_action,
@@ -36,7 +36,7 @@ def print_section(title: str):
     """Print a section header."""
     print(f"\n{'='*60}")
     print(f"  {title}")
-    print(f"{'='*60}\n")
+    print(f"{ '='*60}\n")
 
 
 async def test_check_uv_installation():
@@ -45,10 +45,10 @@ async def test_check_uv_installation():
     
     # Test action directly
     data = await check_uv_installation_action()
-    print(json.dumps(data, indent=2))
+    # data is now a Pydantic model
+    print(data.model_dump_json(indent=2))
     
-    assert "installed" in data, "Should return installation status"
-    assert data["installed"], "uv should be installed"
+    assert data.installed, "uv should be installed"
     
     print(f"{CHECK_MARK} Test passed: uv is installed")
 
@@ -59,8 +59,10 @@ async def test_install_uv():
     instructions = get_install_instructions_action()
     
     print("Installation methods available:")
-    for platform_key, cmd in instructions["methods"]["standalone_installer"].items():
-        print(f"  {platform_key}: {cmd['command']}")
+    # instructions.methods is a dict of InstallMethod or dict of InstallMethod
+    for platform_key, cmd in instructions.methods["standalone_installer"].items():
+        # cmd is InstallMethod
+        print(f"  {platform_key}: {cmd.command}")
     print(f"{CHECK_MARK} Test passed: installation instructions available")
 
 
@@ -68,11 +70,11 @@ async def test_diagnose_environment():
     """Test the diagnose_environment logic."""
     print_section("Testing: environment diagnostics")
     report = await generate_diagnostic_report()
-    print(json.dumps(report, indent=2))
-    assert "overall_health" in report, "Should return health status"
-    assert report["uv"]["installed"], "uv should be detected"
+    print(report.model_dump_json(indent=2))
+    assert report.overall_health, "Should return health status"
+    assert report.uv.installed, "uv should be detected"
     
-    print(f"{CHECK_MARK} Test passed: environment health is '{report['overall_health']}'")
+    print(f"{CHECK_MARK} Test passed: environment health is '{report.overall_health}'")
 
 
 async def test_repair_environment():
@@ -83,8 +85,8 @@ async def test_repair_environment():
     # Run with auto_fix=False
     results = await repair_environment_action(project_path=str(project_dir), auto_fix=False)
     
-    print(json.dumps(results, indent=2))
-    assert results["success"], "Repair action should return success status"
+    print(results.model_dump_json(indent=2))
+    assert results.success, "Repair action should return success status"
     
     has_pyproject = (project_dir / "pyproject.toml").exists()
     has_venv = (project_dir / ".venv").exists()
@@ -105,6 +107,7 @@ async def test_add_dependency():
     if inspect.isawaitable(info):
         info = await info
     
+    # info is now a dict (from utils.py, type hint dict[str, Any])
     print(f"Project: {info.get('project_name', 'unknown')}")
     print(f"Dependencies: {len(info.get('dependencies', []))}")
     
