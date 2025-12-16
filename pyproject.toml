@@ -1,12 +1,13 @@
 [project]
 name = "uv-mcp"
-version = "0.5.1"
+version = "0.5.2"
 description = ""
 authors = [{ name = "Saadman Rafat", email = "saadman@outlook.com" }]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "fastmcp>=0.2.0",
+    "pydantic>=2.12.5",
     "tomli>=2.0.0; python_version < '3.11'",
 ]
 

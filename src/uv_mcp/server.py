@@ -1,65 +1,50 @@
 """UV-Agent MCP Server - Main server implementation."""
 
-import json
+import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
 
 from fastmcp import FastMCP
 
-from .diagnostics import generate_diagnostic_report
 from .actions import (
-    repair_environment_action,
     add_dependency_action,
-    remove_dependency_action,
     check_uv_installation_action,
     get_install_instructions_action,
+    remove_dependency_action,
+    repair_environment_action,
 )
+from .diagnostics import generate_diagnostic_report
+from .models import (
+    DependencyOperationResult,
+    DiagnosticReport,
+    DiagnosticReportSummary,
+    InstallInstructions,
+    RepairResult,
+    UVCheckResult,
+)
+from .tools import ProjectTools
 
-from .project_tools import ProjectTools
-
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("uv-mcp")
 
 # Initialize FastMCP server
 mcp = FastMCP("uv-mcp")
 
 
-def safe_json_dumps(obj: Any, indent: int = 2) -> str:
-    """
-    Safely serialize object to JSON string with error handling.
-
-    Args:
-        obj: Object to serialize
-        indent: Indentation level for pretty printing
-
-    Returns:
-        JSON string representation of the object
-    """
-    try:
-        return json.dumps(obj, indent=indent, default=str)
-    except (TypeError, ValueError) as e:
-        # Fallback: convert problematic values to strings
-        error_msg = {
-            "error": "JSON serialization failed",
-            "details": str(e),
-            "data": str(obj),
-        }
-        return json.dumps(error_msg, indent=indent)
-
-
 @mcp.tool()
-async def check_uv_installation() -> str:
+async def check_uv_installation() -> UVCheckResult:
     """
     Check if uv is installed and return version information.
 
     Returns:
-        JSON string with installation status and version info
+        UVCheckResult with installation status and version info
     """
-    result = await check_uv_installation_action()
-    return safe_json_dumps(result)
+    return await check_uv_installation_action()
 
 
 @mcp.tool()
-async def install_uv() -> str:
+async def install_uv() -> InstallInstructions:
     """
     Provide installation instructions for uv.
 
@@ -67,14 +52,13 @@ async def install_uv() -> str:
     It provides platform-specific installation instructions instead.
 
     Returns:
-        JSON string with installation instructions
+        InstallInstructions with installation instructions
     """
-    result = get_install_instructions_action()
-    return safe_json_dumps(result)
+    return get_install_instructions_action()
 
 
 @mcp.tool()
-async def diagnose_environment(project_path: Optional[str] = None) -> str:
+async def diagnose_environment(project_path: str | None = None) -> DiagnosticReport:
     """
     Analyze the health of a Python environment and project.
 
@@ -90,44 +74,50 @@ async def diagnose_environment(project_path: Optional[str] = None) -> str:
         project_path: Path to the project directory (defaults to current directory)
 
     Returns:
-        JSON string with comprehensive diagnostic report
+        DiagnosticReport with comprehensive diagnostic report
     """
     project_dir = Path(project_path) if project_path else Path.cwd()
 
     if not project_dir.exists():
-        return safe_json_dumps(
-            {
-                "error": f"Project directory does not exist: {project_path}",
-                "overall_health": "critical",
-            }
+        return DiagnosticReport(
+            project_dir=str(project_path or "."),
+            overall_health="critical",
+            critical_issues=[f"Project directory does not exist: {project_path}"],
         )
 
     # Generate diagnostic report
     report = await generate_diagnostic_report(project_dir)
-    report["timestamp"] = datetime.now().isoformat()
+    report.timestamp = datetime.now().isoformat()
 
     # Add summary
     issues_count = 0
     warnings_count = 0
 
-    for section in ["structure", "dependencies", "python"]:
-        if section in report:
-            issues_count += len(report[section].get("issues", []))
-            warnings_count += len(report[section].get("warnings", []))
+    if report.structure:
+        issues_count += len(report.structure.issues)
+        warnings_count += len(report.structure.warnings)
 
-    report["summary"] = {
-        "overall_health": report["overall_health"],
-        "issues_count": issues_count,
-        "warnings_count": warnings_count,
-    }
+    if report.dependencies:
+        issues_count += len(report.dependencies.issues)
+        warnings_count += len(report.dependencies.warnings)
 
-    return safe_json_dumps(report)
+    if report.python:
+        issues_count += len(report.python.issues)
+        warnings_count += len(report.python.warnings)
+
+    report.summary = DiagnosticReportSummary(
+        overall_health=report.overall_health,
+        issues_count=issues_count,
+        warnings_count=warnings_count,
+    )
+
+    return report
 
 
 @mcp.tool()
 async def repair_environment(
-    project_path: Optional[str] = None, auto_fix: bool = True
-) -> str:
+    project_path: str | None = None, auto_fix: bool = True
+) -> RepairResult:
     """
     Attempt to repair common environment issues.
 
@@ -142,19 +132,18 @@ async def repair_environment(
         auto_fix: Whether to automatically apply fixes (default: True)
 
     Returns:
-        JSON string with repair actions taken and results
+        RepairResult with repair actions taken and results
     """
-    results = await repair_environment_action(project_path, auto_fix)
-    return safe_json_dumps(results)
+    return await repair_environment_action(project_path, auto_fix)
 
 
 @mcp.tool()
 async def add_dependency(
     package: str,
-    project_path: Optional[str] = None,
+    project_path: str | None = None,
     dev: bool = False,
-    optional: Optional[str] = None,
-) -> str:
+    optional: str | None = None,
+) -> DependencyOperationResult:
     """
     Add a new dependency to the project.
 
@@ -168,19 +157,18 @@ async def add_dependency(
         optional: Optional dependency group name (e.g., "test", "docs")
 
     Returns:
-        JSON string with operation results
+        DependencyOperationResult with operation results
     """
-    result = await add_dependency_action(package, project_path, dev, optional)
-    return safe_json_dumps(result)
+    return await add_dependency_action(package, project_path, dev, optional)
 
 
 @mcp.tool()
 async def remove_dependency(
     package: str,
-    project_path: Optional[str] = None,
+    project_path: str | None = None,
     dev: bool = False,
-    optional: Optional[str] = None,
-) -> str:
+    optional: str | None = None,
+) -> DependencyOperationResult:
     """
     Remove a dependency from the project.
 
@@ -194,15 +182,14 @@ async def remove_dependency(
         optional: Optional dependency group name (e.g., "test", "docs")
 
     Returns:
-        JSON string with operation results
+        DependencyOperationResult with operation results
     """
-    result = await remove_dependency_action(package, project_path, dev, optional)
-    return safe_json_dumps(result)
+    return await remove_dependency_action(package, project_path, dev, optional)
 
 
 @mcp.tool()
 async def init_project(
-    name: str, python_version: str = "3.13", template: str = "app"
+    name: str, python_version: str = "3.12", template: str = "app"
 ) -> str:
     """Initialize a new Python project (app or lib) with a specific Python version."""
     return await ProjectTools.init_project(name, python_version, template=template)

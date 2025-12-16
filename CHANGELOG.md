@@ -2,6 +2,19 @@
 
 
 
+## [0.5.2] - 2025-12-16
+
+### Refactor
+- **Modern Python**: Updated codebase to use modern Python features and type hints (Python 3.10+ style).
+- **File Renaming**: Renamed `uv_utils.py` to `utils.py` and `project_tools.py` to `tools.py` for standard conventions.
+- **Pydantic Integration**: Implemented Pydantic models for all tool inputs and outputs, ensuring robust type safety and structured responses.
+- **Error Handling**: Introduced a custom exception hierarchy (`UVError`, `UVCommandError`, `UVTimeoutError`) for better error management.
+- **Code Structure**: Decomposed complex functions in `actions.py` into smaller, readable helper functions.
+
+### Changed
+- Default Python version for `init_project` is now 3.12.
+- Updated all internal imports to reflect file renaming.
+
 ## [0.5.0] - 2025-12-15
 
 ### Documentation

@@ -1,7 +1,7 @@
 """Comprehensive test suite for UV-MCP server.
 
 This module contains unit tests for all components of the uv-mcp MCP server,
-including uv_utils, diagnostics, and server functionality.
+including utils, diagnostics, and server functionality.
 """
 
 import json
@@ -16,7 +16,7 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from uv_mcp.uv_utils import (
+from uv_mcp.utils import (
     check_uv_available,
     check_project_venv,
     find_uv_project_root,
@@ -30,9 +30,14 @@ from uv_mcp.diagnostics import (
     generate_diagnostic_report,
     _get_worst_health,
 )
-# Import the helper function directly, not the decorated tools
-from uv_mcp.server import safe_json_dumps
-
+from uv_mcp.models import (
+    UVCheckResult,
+    InstallInstructions,
+    DiagnosticReport,
+    StructureCheck,
+    DependencyCheck,
+    PythonCheck
+)
 
 # =============================================================================
 # Fixtures
@@ -80,7 +85,7 @@ def temp_project_with_venv(temp_project_with_pyproject):
 
 
 # =============================================================================
-# uv_utils tests
+# utils tests
 # =============================================================================
 
 class TestCheckUvAvailable:
@@ -118,12 +123,6 @@ class TestCheckUvAvailable:
     @pytest.mark.asyncio
     async def test_uv_timeout(self, mock_exec):
         """Test when uv command times out."""
-        # asyncio.create_subprocess_exec doesn't timeout itself, 
-        # but communicate() might if we put a timeout there.
-        # However, the implementation doesn't seem to have a timeout?
-        # Let's check uv_utils.py. It uses process.communicate() without timeout.
-        # But let's assume we want to test exception handling.
-        
         mock_exec.side_effect = OSError("Timeout simulation")
         available, version = await check_uv_available()
         assert available is False
@@ -157,11 +156,7 @@ class TestRunUvCommand:
     @pytest.mark.asyncio
     async def test_timeout_handling(self, mock_exec):
         """Test command timeout handling."""
-        # Simulating a timeout or error during creation
         mock_exec.side_effect = TimeoutError("Optimistically simulating timeout")
-        # uv_utils implementation of run_uv_command uses try/except Exception
-        # so check if it catches generic exceptions or specific ones.
-        
         success, stdout, stderr = await run_uv_command(["sync"])
         assert success is False
         assert "timed out" in stderr or "Execution error" in stderr
@@ -262,7 +257,6 @@ class TestFindUvProjectRoot:
 
 class TestGetWorstHealth:
     """Tests for _get_worst_health helper function."""
-    # ... (no change needed here, sync tests)
     def test_critical_beats_warning(self):
         """Test that critical status beats warning."""
         assert _get_worst_health("warning", "critical") == "critical"
@@ -292,21 +286,23 @@ class TestCheckProjectStructure:
     async def test_empty_directory_invalid(self, temp_project_dir):
         """Test empty directory is invalid."""
         result = check_project_structure(temp_project_dir)
-        assert result["valid"] is False
-        assert len(result["issues"]) > 0
+        assert isinstance(result, StructureCheck)
+        assert result.valid is False
+        assert len(result.issues) > 0
 
     @pytest.mark.asyncio
     async def test_with_pyproject_valid(self, temp_project_with_pyproject):
         """Test directory with pyproject.toml is valid."""
         result = check_project_structure(temp_project_with_pyproject)
-        assert result["valid"] is True
+        assert isinstance(result, StructureCheck)
+        assert result.valid is True
 
     @pytest.mark.asyncio
     async def test_with_requirements_has_warning(self, temp_project_with_requirements):
         """Test directory with requirements.txt has migration warning."""
         result = check_project_structure(temp_project_with_requirements)
         # Valid because we have a dependency file
-        assert any("requirements.txt" in w for w in result["warnings"])
+        assert any("requirements.txt" in w for w in result.warnings)
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("uv_mcp.diagnostics.check_project_venv")
@@ -318,14 +314,14 @@ class TestCheckProjectStructure:
         result = check_project_structure(temp_project_with_pyproject)
         # Check for either "virtual environment" or "venv" in warnings
         has_venv_warning = any("virtual environment" in w.lower() or "venv" in w.lower()
-                               for w in result["warnings"])
-        assert has_venv_warning or len(result["warnings"]) > 0  # At least has lockfile warning
+                               for w in result.warnings)
+        assert has_venv_warning or len(result.warnings) > 0
 
     @pytest.mark.asyncio
     async def test_missing_lockfile_warning(self, temp_project_with_pyproject):
         """Test warning when no lockfile present."""
         result = check_project_structure(temp_project_with_pyproject)
-        assert any("uv.lock" in w for w in result["warnings"])
+        assert any("uv.lock" in w for w in result.warnings)
 
 
 class TestCheckDependencies:
@@ -335,16 +331,16 @@ class TestCheckDependencies:
     async def test_no_dependency_file(self, temp_project_dir):
         """Test with no dependency file."""
         result = await check_dependencies(temp_project_dir)
-        assert result["healthy"] is False
-        assert any("No dependency file" in i for i in result["issues"])
+        assert isinstance(result, DependencyCheck)
+        assert result.healthy is False
+        assert any("No dependency file" in i for i in result.issues)
 
     @pytest.mark.asyncio
     async def test_with_pyproject(self, temp_project_with_pyproject):
         """Test with pyproject.toml present."""
         result = await check_dependencies(temp_project_with_pyproject)
         # Should at least not fail immediately
-        assert "issues" in result
-        assert "warnings" in result
+        assert isinstance(result, DependencyCheck)
 
 
 class TestCheckPythonVersion:
@@ -354,73 +350,38 @@ class TestCheckPythonVersion:
     async def test_returns_current_version(self, temp_project_dir):
         """Test that current Python version is returned."""
         result = await check_python_version(temp_project_dir)
-        assert "current_version" in result
-        # It might be "unknown" if no venv found, or a version string
-        assert result["current_version"] == "unknown" or result["current_version"].count(".") >= 1
+        assert isinstance(result, PythonCheck)
+        assert result.current_version == "unknown" or result.current_version.count(".") >= 1
 
     @pytest.mark.asyncio
     async def test_compatible_by_default(self, temp_project_dir):
         """Test that compatible is True by default."""
         result = await check_python_version(temp_project_dir)
-        assert result["compatible"] is True
+        assert result.compatible is True
 
 
 class TestGenerateDiagnosticReport:
     """Tests for generate_diagnostic_report function."""
 
     @pytest.mark.asyncio
-    async def test_returns_dict(self, temp_project_dir):
-        """Test that function returns a dictionary."""
+    async def test_returns_report(self, temp_project_dir):
+        """Test that function returns a DiagnosticReport."""
         result = await generate_diagnostic_report(temp_project_dir)
-        assert isinstance(result, dict)
+        assert isinstance(result, DiagnosticReport)
 
     @pytest.mark.asyncio
-    async def test_contains_required_keys(self, temp_project_dir):
+    async def test_contains_required_fields(self, temp_project_dir):
         """Test that result contains required keys."""
         result = await generate_diagnostic_report(temp_project_dir)
-        required_keys = ["project_dir", "overall_health", "uv"]
-        for key in required_keys:
-            assert key in result
+        assert result.project_dir is not None
+        assert result.overall_health is not None
+        assert result.uv is not None
 
     @pytest.mark.asyncio
     async def test_overall_health_is_valid_status(self, temp_project_dir):
         """Test that overall_health is a valid status."""
         result = await generate_diagnostic_report(temp_project_dir)
-        assert result["overall_health"] in ["healthy", "warning", "critical"]
-
-
-# =============================================================================
-# server tests
-# =============================================================================
-
-class TestSafeJsonDumps:
-    """Tests for safe_json_dumps function."""
-
-    def test_serializes_dict(self):
-        """Test serialization of dictionary."""
-        data = {"key": "value", "number": 42}
-        result = safe_json_dumps(data)
-        assert isinstance(result, str)
-        parsed = json.loads(result)
-        assert parsed["key"] == "value"
-        assert parsed["number"] == 42
-
-    def test_handles_path_objects(self):
-        """Test handling of Path objects."""
-        data = {"path": Path("/some/path")}
-        result = safe_json_dumps(data)
-        assert isinstance(result, str)
-        parsed = json.loads(result)
-        assert "/some/path" in parsed["path"]
-
-    def test_handles_non_serializable(self):
-        """Test handling of non-serializable objects."""
-        class CustomObject:
-            pass
-        data = {"obj": CustomObject()}
-        result = safe_json_dumps(data)
-        assert isinstance(result, str)
-        # Should not raise, should convert to string
+        assert result.overall_health in ["healthy", "warning", "critical"]
 
 
 # =============================================================================
@@ -445,241 +406,109 @@ class TestMCPToolFunctions:
         report = await generate_diagnostic_report(temp_project_with_pyproject)
         
         # Check required sections
-        assert "uv" in report
-        assert "structure" in report
-        assert "project_info" in report
-        assert "overall_health" in report
+        assert report.uv is not None
+        assert report.structure is not None
+        assert report.project_info is not None
+        assert report.overall_health is not None
         
         # Check uv section
-        assert "installed" in report["uv"]
+        assert report.uv.installed is not None
         
         # Check structure section
-        assert "valid" in report["structure"]
-        assert "issues" in report["structure"]
-        assert "warnings" in report["structure"]
+        assert report.structure.valid is not None
+        assert isinstance(report.structure.issues, list)
+        assert isinstance(report.structure.warnings, list)
 
-        @pytest.mark.asyncio
+    @pytest.mark.asyncio
+    async def test_get_project_info_complete(self, temp_project_with_pyproject):
+        """Test project info extraction is complete."""
+        info = get_project_info(temp_project_with_pyproject)
+        
+        assert info["has_pyproject"] is True
+        assert info["project_name"] == "test-project"
+        assert "dependencies" in info
+        assert len(info["dependencies"]) > 0
 
-        async def test_get_project_info_complete(self, temp_project_with_pyproject):
-
-            """Test project info extraction is complete."""
-
-            info = get_project_info(temp_project_with_pyproject)
-
-            
-
-            assert info["has_pyproject"] is True
-
-            assert info["project_name"] == "test-project"
-
-            assert "dependencies" in info
-
-            assert len(info["dependencies"]) > 0
-
-    
-
-        @pytest.mark.asyncio
-
-        async def test_health_status_tracking(self, temp_project_dir):
-
-            """Test that health status is correctly tracked."""
-
-            # Empty directory should be critical
-
-            report = await generate_diagnostic_report(temp_project_dir)
-
-            assert report["overall_health"] in ["critical", "warning"]
-
-    
-
-        def test_safe_json_with_complex_objects(self):
-
-            """Test safe_json_dumps with various complex objects."""
-
-            from datetime import datetime
-
-            data = {
-
-                "string": "value",
-
-                "number": 42,
-
-                "float": 3.14,
-
-                "list": [1, 2, 3],
-
-                "dict": {"nested": "value"},
-
-                "none": None,
-
-                "bool": True,
-
-                "datetime": datetime.now(),
-
-            }
-
-            result = safe_json_dumps(data)
-
-            assert isinstance(result, str)
-
-            parsed = json.loads(result)
-
-            assert parsed["string"] == "value"
-
-            assert parsed["number"] == 42
-
-    
-
-    
+    @pytest.mark.asyncio
+    async def test_health_status_tracking(self, temp_project_dir):
+        """Test that health status is correctly tracked."""
+        # Empty directory should be critical or warning
+        report = await generate_diagnostic_report(temp_project_dir)
+        assert report.overall_health in ["critical", "warning"]
 
     # =============================================================================
-
     # Integration tests
-
     # =============================================================================
-
-    
 
     class TestIntegration:
-
         """Integration tests for the full workflow."""
 
-    
-
         @pytest.mark.asyncio
-
         async def test_full_diagnostic_workflow(self, temp_project_with_pyproject):
-
             """Test complete diagnostic workflow."""
-
             # Generate diagnostic report
-
             report = await generate_diagnostic_report(temp_project_with_pyproject)
-
             
-
             # Should have all sections
-
-            assert "uv" in report
-
-            assert "structure" in report
-
-            assert "project_info" in report
-
+            assert report.uv is not None
+            assert report.structure is not None
+            assert report.project_info is not None
             
-
             # Project info should be populated
-
-            assert report["project_info"]["project_name"] == "test-project"
-
-    
+            assert report.project_info.project_name == "test-project"
 
         @pytest.mark.asyncio
-
         async def test_project_with_full_structure(self, temp_project_with_venv):
-
             """Test project with complete structure."""
-
             # Add lockfile
-
             (temp_project_with_venv / "uv.lock").write_text("# lockfile content")
-
             
-
             report = await generate_diagnostic_report(temp_project_with_venv)
-
             
-
             # Should have minimal warnings with full setup
-
-            assert report["project_info"]["has_lockfile"] is True
-
-    
-
-    
+            assert report.project_info.has_lockfile is True
 
     # =============================================================================
-
     # Edge case tests
-
     # =============================================================================
-
-    
 
     class TestEdgeCases:
-
         """Tests for edge cases and error conditions."""
 
-    
-
         @pytest.mark.asyncio
-
         async def test_malformed_pyproject(self, temp_project_dir):
-
             """Test handling of malformed pyproject.toml."""
-
-            (temp_project_dir / "pyproject.toml").write_text("not valid toml {{{{")
-
+            (temp_project_dir / "pyproject.toml").write_text("not valid toml {{{{ ")
             info = get_project_info(temp_project_dir)
-
             assert info["has_pyproject"] is True
-
             # Should have parse error or handle gracefully
-
             assert "parse_error" in info or info.get("project_name") == "unknown"
 
-    
-
         @pytest.mark.asyncio
-
         async def test_empty_pyproject(self, temp_project_dir):
-
             """Test handling of empty pyproject.toml."""
-
             (temp_project_dir / "pyproject.toml").write_text("")
-
             info = get_project_info(temp_project_dir)
-
             assert info["has_pyproject"] is True
 
-    
-
         @pytest.mark.asyncio
-
         async def test_unicode_in_project_name(self, temp_project_dir):
-
             """Test handling of unicode in project name."""
-
             content = """
-
     [project]
-
     name = "test-项目-🚀"
-
     version = "0.1.0"
-
     """
-
             (temp_project_dir / "pyproject.toml").write_text(content)
-
             info = get_project_info(temp_project_dir)
-
             assert "test-项目-🚀" in info.get("project_name", "")
 
-    
-
         @pytest.mark.asyncio
-
         async def test_deeply_nested_subdirectory(self, temp_project_with_pyproject):
-
             """Test finding project root from deeply nested directory."""
-
             deep_path = temp_project_with_pyproject / "a" / "b" / "c" / "d" / "e"
-
             deep_path.mkdir(parents=True)
-
             root = find_uv_project_root(deep_path)
-
             assert root == temp_project_with_pyproject
 
 

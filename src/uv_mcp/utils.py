@@ -1,14 +1,49 @@
 """Utility functions for interacting with uv."""
 
 import asyncio
+import logging
 import shutil
-import sys
-
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
-async def check_uv_available() -> Tuple[bool, Optional[str]]:
+class UVError(Exception):
+    """Base exception for UV operations."""
+    ...
+
+
+class UVNotFoundError(UVError):
+    """Raised when uv executable is not found."""
+    ...
+
+
+class UVCommandError(UVError):
+    """Raised when a uv command fails."""
+
+    def __init__(self, command: list[str], return_code: int, stderr: str):
+        self.command = command
+        self.return_code = return_code
+        self.stderr = stderr
+        super().__init__(
+            f"Command '{' '.join(command)}' failed with code {return_code}: {stderr}"
+        )
+
+
+class UVTimeoutError(UVError):
+    """Raised when a uv command times out."""
+
+    def __init__(self, command: list[str], timeout: float):
+        self.command = command
+        self.timeout = timeout
+        super().__init__(
+            f"Command '{' '.join(command)}' timed out after {timeout} seconds"
+        )
+
+
+async def check_uv_available() -> tuple[bool, str | None]:
     """
     Check if uv is installed and available.
 
@@ -20,6 +55,7 @@ async def check_uv_available() -> Tuple[bool, Optional[str]]:
         # Use shutil.which to find the executable first
         uv_path = shutil.which("uv")
         if not uv_path:
+            logger.debug("uv executable not found in PATH")
             return False, None
 
         process = await asyncio.create_subprocess_exec(
@@ -35,8 +71,13 @@ async def check_uv_available() -> Tuple[bool, Optional[str]]:
         if process.returncode == 0:
             version = stdout_bytes.decode().strip()
             return True, version
+
+        logger.warning(
+            f"uv --version failed with code {process.returncode}: {stderr_bytes.decode()}"
+        )
         return False, None
-    except (asyncio.TimeoutError, FileNotFoundError, OSError):
+    except asyncio.TimeoutError:
+        logger.warning("uv --version timed out")
         if process:
             try:
                 if process.returncode is None:
@@ -45,23 +86,28 @@ async def check_uv_available() -> Tuple[bool, Optional[str]]:
             except (ProcessLookupError, OSError):
                 pass
         return False, None
+    except (FileNotFoundError, OSError) as e:
+        logger.error(f"Error checking uv availability: {e}")
+        return False, None
 
 
 async def run_uv_command(
-    args: list[str], cwd: Optional[Path] = None
-) -> Tuple[bool, str, str]:
+    args: list[str], cwd: Path | None = None, timeout: float = 120.0
+) -> tuple[bool, str, str]:
     """
     Execute a uv command with given arguments.
 
     Args:
         args: List of command arguments (e.g., ["add", "requests"])
         cwd: Working directory for the command
+        timeout: Timeout in seconds (default: 120.0)
 
     Returns:
         Tuple of (success, stdout, stderr)
     """
     process = None
     try:
+        logger.debug(f"Running uv command: uv {' '.join(args)} in {cwd or 'cwd'}")
         process = await asyncio.create_subprocess_exec(
             "uv",
             *args,
@@ -69,23 +115,33 @@ async def run_uv_command(
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
         )
-        # Increase timeout for network/install operations
+
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            process.communicate(), timeout=120
+            process.communicate(), timeout=timeout
         )
 
-        return process.returncode == 0, stdout_bytes.decode(), stderr_bytes.decode()
+        stdout = stdout_bytes.decode()
+        stderr = stderr_bytes.decode()
+
+        if process.returncode != 0:
+            logger.warning(f"uv command failed: {stderr}")
+            return False, stdout, stderr
+
+        return True, stdout, stderr
+
     except asyncio.TimeoutError:
+        logger.error(f"uv command timed out after {timeout}s: uv {' '.join(args)}")
         if process:
             try:
                 if process.returncode is None:
                     process.kill()
-                # Ensure we consume pipes and wait for exit
                 await process.communicate()
             except (ProcessLookupError, OSError):
                 pass
-        return False, "", "Command timed out after 120 seconds"
+        return False, "", f"Command timed out after {timeout} seconds"
+
     except Exception as e:
+        logger.error(f"Unexpected error running uv command: {e}")
         if process:
             try:
                 if process.returncode is None:
@@ -96,7 +152,7 @@ async def run_uv_command(
         return False, "", str(e)
 
 
-def get_project_info(project_dir: Optional[Path] = None) -> dict:
+def get_project_info(project_dir: Path | None = None) -> dict[str, Any]:
     """
     Extract project metadata from pyproject.toml.
 
@@ -111,11 +167,14 @@ def get_project_info(project_dir: Optional[Path] = None) -> dict:
 
     pyproject_path = project_dir / "pyproject.toml"
 
-    info = {
+    info: dict[str, Any] = {
         "has_pyproject": pyproject_path.exists(),
         "has_requirements": (project_dir / "requirements.txt").exists(),
         "has_lockfile": (project_dir / "uv.lock").exists(),
         "project_dir": str(project_dir),
+        "dependencies": [],
+        "project_name": "unknown",
+        "python_version": "unknown",
     }
 
     if info["has_pyproject"]:
@@ -124,26 +183,27 @@ def get_project_info(project_dir: Optional[Path] = None) -> dict:
         except ImportError:
             # Python < 3.11
             try:
-                import tomli as tomllib
+                import tomli as tomllib  # type: ignore
             except ImportError:
                 info["parse_error"] = "tomllib/tomli not available"
+                logger.error("tomllib/tomli not available for parsing pyproject.toml")
                 return info
 
         try:
             with open(pyproject_path, "rb") as f:
                 data = tomllib.load(f)
-                info["project_name"] = data.get("project", {}).get("name", "unknown")
-                info["python_version"] = data.get("project", {}).get(
-                    "requires-python", "unknown"
-                )
-                info["dependencies"] = data.get("project", {}).get("dependencies", [])
+                project_table = data.get("project", {})
+                info["project_name"] = project_table.get("name", "unknown")
+                info["python_version"] = project_table.get("requires-python", "unknown")
+                info["dependencies"] = project_table.get("dependencies", [])
         except Exception as e:
             info["parse_error"] = str(e)
+            logger.error(f"Error parsing pyproject.toml: {e}")
 
     return info
 
 
-def check_project_venv(project_dir: Path) -> Tuple[bool, Optional[str]]:
+def check_project_venv(project_dir: Path) -> tuple[bool, str | None]:
     """
     Check if a virtual environment exists in the project directory.
 
@@ -161,7 +221,7 @@ def check_project_venv(project_dir: Path) -> Tuple[bool, Optional[str]]:
     return False, None
 
 
-def find_uv_project_root(start_dir: Optional[Path] = None) -> Optional[Path]:
+def find_uv_project_root(start_dir: Path | None = None) -> Path | None:
     """
     Find the root directory of a uv project by looking for pyproject.toml.
 

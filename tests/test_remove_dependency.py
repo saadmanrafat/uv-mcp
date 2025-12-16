@@ -1,4 +1,3 @@
-
 import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
@@ -7,6 +6,8 @@ import sys
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from uv_mcp.models import DependencyOperationResult
 
 @pytest.fixture
 def temp_project_dir():
@@ -49,8 +50,9 @@ class TestRemoveDependency:
         
         result = await remove_dependency_action("requests", str(temp_project_with_pyproject))
         
-        assert result["success"] is True
-        assert "requests" in result["message"]
+        assert isinstance(result, DependencyOperationResult)
+        assert result.success is True
+        assert "requests" in result.message
         mock_run_uv.assert_called_with(["remove", "requests"], cwd=temp_project_with_pyproject)
 
     @patch("uv_mcp.actions.run_uv_command")
@@ -67,7 +69,8 @@ class TestRemoveDependency:
         
         result = await remove_dependency_action("pytest", str(temp_project_with_pyproject), dev=True)
         
-        assert result["success"] is True
+        assert isinstance(result, DependencyOperationResult)
+        assert result.success is True
         # Check command args
         args = mock_run_uv.call_args[0][0]
         assert "remove" in args

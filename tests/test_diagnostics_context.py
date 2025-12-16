@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from pathlib import Path
@@ -9,6 +8,7 @@ import asyncio
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from uv_mcp.diagnostics import check_python_version
+from uv_mcp.models import PythonCheck
 
 @pytest.mark.asyncio
 class TestCheckPythonVersionContext:
@@ -31,8 +31,9 @@ class TestCheckPythonVersionContext:
         
         result = await check_python_version(tmp_path)
         
-        assert result["current_version"] == "3.9.5"
-        assert result["source"] == "virtual_env"
+        assert isinstance(result, PythonCheck)
+        assert result.current_version == "3.9.5"
+        assert result.source == "virtual_env"
         
         # Verify run_uv_command was called with correct args
         args, kwargs = mock_run_uv.call_args
@@ -56,9 +57,10 @@ class TestCheckPythonVersionContext:
             
             result = await check_python_version(tmp_path)
             
-            assert result["source"] == "system_fallback"
-            assert len(result["warnings"]) > 0
-            assert "Using system Python" in result["warnings"][1]
+            assert isinstance(result, PythonCheck)
+            assert result.source == "system_fallback"
+            assert len(result.warnings) > 0
+            assert "Using system Python" in result.warnings[1]
 
     @patch("uv_mcp.diagnostics.check_project_venv")
     @patch("uv_mcp.diagnostics.get_project_info")
@@ -74,7 +76,8 @@ class TestCheckPythonVersionContext:
         
         result = await check_python_version(tmp_path)
         
-        assert result["compatible"] is False
-        assert "mismatch" in result["issues"][0]
-        assert "need 3.10.0" in result["issues"][0]
-        assert "have 3.9.0" in result["issues"][0]
+        assert isinstance(result, PythonCheck)
+        assert result.compatible is False
+        assert "mismatch" in result.issues[0]
+        assert "need 3.10.0" in result.issues[0]
+        assert "have 3.9.0" in result.issues[0]
