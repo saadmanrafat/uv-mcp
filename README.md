@@ -63,7 +63,7 @@ More installation options in the [full documentation](https://saadman.dev/uv-mcp
 ##  Community & Support
 
 - **Issues**: [GitHub Issues](https://github.com/saadmanrafat/uv-mcp/issues)
-- **Twitter/X**: [@saadmanrafat](https://twitter.com/saadmanrafat)
+- **Twitter/X**: [@saadmanrafat](https://twitter.com/saadmanrafat_)
 
 ---
 
