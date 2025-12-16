@@ -2,6 +2,19 @@
 
 
 
+## [0.6.0] - 2025-12-16
+
+### Added
+- **Dependency Inspection**: Added a suite of tools for deep dependency analysis:
+    - `list_dependencies`: Lists all installed packages in the project's environment.
+    - `show_package_info`: Retrieves detailed metadata for a specific package.
+    - `check_outdated_packages`: Identifies packages that have newer versions available.
+    - `analyze_dependency_tree`: Visualizes the dependency tree to understand package relationships.
+
+### Fixed
+- **Environment Isolation**: Fixed critical bug where `uv pip` commands were inspecting the MCP server's own environment instead of the target project's virtual environment. All tools now explicitly target the project's venv.
+- **Test Isolation**: Improved test suite to prevent environment leakage between tests and the host system.
+
 ## [0.5.3] - 2025-12-16
 
 ### Fixed

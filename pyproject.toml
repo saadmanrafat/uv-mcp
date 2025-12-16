@@ -1,7 +1,7 @@
 [project]
 name = "uv-mcp"
-version = "0.5.3"
-description = ""
+version = "0.6"
+description = "Bridge modern, reproducible Python environments with MCP agents. Diagnose, self-heal, and manage uv workflows"
 authors = [{ name = "Saadman Rafat", email = "saadman@outlook.com" }]
 readme = "README.md"
 requires-python = ">=3.10"

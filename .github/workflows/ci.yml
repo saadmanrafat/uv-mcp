@@ -131,7 +131,7 @@ jobs:
         prerelease: false
         generate_release_notes: true
         body: |
-          ## UV-Agent ${{ steps.version.outputs.VERSION }}
+          ## uv-mcp ${{ steps.version.outputs.VERSION }}
           
           ### Installation
           
