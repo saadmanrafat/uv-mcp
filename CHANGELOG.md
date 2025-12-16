@@ -2,6 +2,12 @@
 
 
 
+## [0.5.3] - 2025-12-16
+
+### Fixed
+- Fixed GitHub Actions CI/CD workflow syntax error affecting release creation.
+- Ensured proper release asset upload by using a fresh tag.
+
 ## [0.5.2] - 2025-12-16
 
 ### Refactor
