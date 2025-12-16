@@ -2,7 +2,7 @@
 
 
 
-## [0.6.0] - 2025-12-16
+## [0.6.1] - 2025-12-16
 
 ### Added
 - **Dependency Inspection**: Added a suite of tools for deep dependency analysis:
