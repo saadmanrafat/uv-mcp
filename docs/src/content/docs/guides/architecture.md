@@ -1,59 +1,63 @@
 ---
 title: Architecture
-description: Overview of the UV-MCP codebase and design.
+description: Technical deep dive into the UV-MCP system design and implementation.
 ---
 
 # Architecture
 
-This document provides a high-level overview of the UV-MCP codebase to help developers understand how it works and where to find things.
+This document provides a technical overview of the UV-MCP codebase, intended for developers who wish to understand the internal mechanisms or contribute to the project.
 
-## Code Layout
+## Project Structure
 
-The source code is located in `src/uv_mcp/`. Here is the structure:
+The codebase follows a modular design within the `src/uv_mcp/` directory, separating protocol handling, business logic, and low-level system interactions.
 
 ```text
 src/uv_mcp/
 ├── __init__.py
-├── server.py         # Entry point and tool definitions
-├── actions.py        # Implementation of tool logic
-├── diagnostics.py    # Environment health check logic
-├── project_tools.py  # Class-based tools (init, sync, export)
-└── uv_utils.py       # Low-level wrappers for 'uv' CLI
+├── server.py         # MCP Protocol Server & Entry Point
+├── actions.py        # Imperative Action Handlers (Write operations)
+├── diagnostics.py    # State Analysis & Health Checks (Read operations)
+├── tools.py          # Project Lifecycle & Utility Tools
+└── utils.py          # Subprocess abstraction & uv CLI wrappers
 ```
 
-## Component Summary
+## System Components
 
-### 1. Server (`server.py`)
-This is the heart of the application. It initializes the `FastMCP` server and defines the tools exposed to the AI.
--   **Responsibility**: Routing MCP requests to the appropriate internal functions.
--   **Key Libraries**: `fastmcp`.
+### 1. The MCP Server (`server.py`)
+The server module acts as the interface layer. It utilizes the `fastmcp` library to define the capabilities exposed to the client.
+-   **Role**: Router and Protocol Handler.
+-   **Function**: Maps incoming JSON-RPC requests (e.g., "call_tool") to internal Python functions.
 
-### 2. Actions (`actions.py`)
-Contains the core "business logic" for environment modifications.
--   **Functions**: `repair_environment_action`, `add_dependency_action`, etc.
--   **Responsibility**: Orchestrating checks and command executions to perform a user request.
+### 2. Action Orchestrator (`actions.py`)
+This module contains the imperative logic for modifying the system state.
+-   **Role**: Executor.
+-   **Key Functions**: `repair_environment_action`, `add_dependency_action`.
+-   **Responsibility**: Validates preconditions (e.g., existence of `pyproject.toml`) before invoking `uv` commands.
 
-### 3. Diagnostics (`diagnostics.py`)
-Implements the read-only logic for analyzing the project state.
--   **Responsibility**: parsing `pyproject.toml`, checking `.venv`, verifying Python versions, and generating the JSON health report.
+### 3. Diagnostic Engine (`diagnostics.py`)
+A read-only subsystem responsible for analyzing project health.
+-   **Role**: Analyst.
+-   **Key Functions**: `diagnose_environment`.
+-   **Responsibility**: Parses metadata, inspects the virtual environment, and aggregates health metrics into a structured JSON report.
 
-### 4. Utilities (`uv_utils.py`)
-A wrapper around Python's `asyncio.subprocess`.
--   **Responsibility**: Executing `uv` shell commands safely, handling timeouts, and capturing stdout/stderr.
+### 4. Process Abstraction (`utils.py`)
+A safety layer around `asyncio.subprocess`.
+-   **Role**: HAL (Hardware/System Abstraction).
+-   **Responsibility**: Executes shell commands, handles timeouts, captures standard output/error streams, and ensures proper error propagation.
 
-### 5. Project Tools (`project_tools.py`)
-Encapsulates operations related to project lifecycle, like initialization and exporting.
+## Request Lifecycle
 
-## Data Flow
+The flow of a typical user request (e.g., "Add numpy") is as follows:
 
-1.  **Request**: The generic MCP client sends a JSON-RPC request (e.g., `call_tool("add_dependency", {"package": "numpy"})`).
-2.  **Server**: `server.py` receives the request and calls `add_dependency`.
-3.  **Action**: `actions.py` validates the request (checks for `pyproject.toml`).
-4.  **Execution**: `uv_utils.py` spawns a subprocess `uv add numpy`.
-5.  **Response**: The subprocess output is captured, formatted as JSON, and returned to the client.
+1.  **Ingest**: The AI client transmits a JSON-RPC request: `call_tool("add_dependency", {"package": "numpy"})`.
+2.  **Routing**: `server.py` receives the payload and dispatches it to the registered handler in `actions.py`.
+3.  **Validation**: The handler verifies that the current working directory is a valid Python project.
+4.  **Execution**: `utils.py` spawns a subprocess: `uv add numpy`.
+5.  **Output**: The subprocess's `stdout` and `stderr` are captured and parsed.
+6.  **Response**: A JSON response indicating success or failure is returned to the client.
 
 ## Design Principles
 
--   **Safety**: We try to validate project paths before running commands.
--   **Transparency**: We prefer returning detailed JSON responses so the AI can interpret errors intelligently.
--   **Fallback**: Diagnostics try to handle missing files or partial setups gracefully.
+-   **Statelessness**: The server maintains minimal state between requests, relying on the filesystem as the source of truth.
+-   **Idempotency**: Where possible, tools are designed to be idempotent (e.g., diagnosing an already healthy environment is a no-op).
+-   **Fail-Safe**: Subprocesses are isolated; a failure in `uv` execution is caught and returned as a structured error, preventing a server crash.

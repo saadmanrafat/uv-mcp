@@ -1,59 +1,66 @@
 ---
 title: Contributing
-description: How to contribute to the UV-MCP open source project.
+description: Guidelines for contributing to the UV-MCP project.
 ---
 
 # Contributing
 
-We welcome contributions! Whether you're fixing a bug, adding a new feature, or improving documentation, your help is appreciated.
+Thank you for your interest in improving UV-MCP. We follow standard open-source practices and use `uv` for all development workflows.
 
-## Getting Started
+## Development Setup
 
-1.  **Fork the repository** on GitHub.
-2.  **Clone your fork**:
-    ```bash
-    git clone https://github.com/your-username/uv-mcp
-    cd uv-mcp
-    ```
-3.  **Install dependencies** using `uv`:
-    ```bash
-    uv sync
-    ```
+### 1. Fork and Clone
+Fork the repository to your GitHub account, then clone it locally:
 
-## Development Environment
+```bash
+git clone https://github.com/YOUR_USERNAME/uv-mcp.git
+cd uv-mcp
+```
 
-We use `uv` for dependency management and `pytest` for testing.
+### 2. Initialize Environment
+Use `uv` to sync dependencies and set up the development virtual environment:
 
-### Running Tests
+```bash
+uv sync
+```
 
-Run the test suite to ensure everything is working:
+This command reads `pyproject.toml` and installs all necessary dependencies, including dev tools like `pytest`.
+
+## Testing
+
+We prioritize reliability. Ensure all tests pass before submitting changes.
+
+### Run All Tests
+Execute the full test suite:
 
 ```bash
 uv run pytest
 ```
 
-Or run the specific tool test script:
+### Targeted Testing
+To test specific components (e.g., tool definitions):
 
 ```bash
 uv run python test_tools.py
 ```
 
-## Adding a New Tool
+## Workflow for New Features
 
-1.  **Define the Logic**: Add the implementation function in `src/uv_mcp/actions.py` or a new module.
-2.  **Expose the Tool**: Add the `@mcp.tool()` decorator in `src/uv_mcp/server.py` and call your implementation.
-3.  **Add Tests**: specific unit tests in `tests/`.
-4.  **Update Documentation**: Add the tool to `docs/src/content/docs/reference/tools.md`.
+1.  **Branching**: Create a feature branch (`feat/new-tool` or `fix/bug-fix`).
+2.  **Implementation**:
+    -   Add core logic to `actions.py` or `diagnostics.py`.
+    -   Expose the new capability in `server.py` using the `@mcp.tool()` decorator.
+3.  **Documentation**: Update `src/content/docs/reference/tools.md` with the new API signature.
+4.  **Verification**: Add a corresponding test case in `tests/`.
 
-## Pull Request Process
+## Code Standards
 
-1.  Create a feature branch: `git checkout -b feature/my-cool-feature`.
-2.  Commit your changes with clear messages.
-3.  Push to your fork and submit a Pull Request.
-4.  Wait for review!
+-   **Type Safety**: All function signatures must include Python type hints.
+-   **Formatting**: We adhere to PEP 8.
+-   **Docstrings**: Public functions must include clear docstrings describing parameters and return values.
 
-## Code Style
+## Submitting a Pull Request
 
--   Follow standard Python PEP 8 conventions.
--   Use type hints (`mypy` compatible).
--   Include docstrings for all public functions.
+1.  Push your branch to your fork.
+2.  Open a Pull Request against the `main` branch of the upstream repository.
+3.  Provide a clear description of the problem solved and the solution implemented.

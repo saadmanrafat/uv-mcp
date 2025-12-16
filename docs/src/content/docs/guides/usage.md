@@ -1,93 +1,111 @@
 ---
 title: Usage Guide
-description: Learn how to interact with UV-MCP to manage your Python projects.
+description: Operational workflows and command patterns for UV-MCP.
 ---
 
 # Usage Guide
 
-Once UV-MCP is installed and connected to your AI agent, you can interact with it using natural language. This guide covers common workflows and example prompts.
+This document outlines the primary workflows for interacting with UV-MCP. The server translates natural language intent into precise `uv` commands.
 
-## Basic Diagnostics
+## Environment Health & Setup
 
-The most powerful feature of UV-MCP is its ability to diagnose the current environment.
+Tools to verify the system state and fix configuration issues.
 
-**Prompt:**
-> "Diagnose my environment."
-> "Why is my python setup broken?"
+### Diagnostics & Repair
 
-**What happens:**
-The agent calls `diagnose_environment`. It checks:
-- If `uv` is installed.
-- If a `pyproject.toml` or `requirements.txt` exists.
-- If a virtual environment (`.venv`) exists and is active.
-- If dependencies are in sync with the lockfile.
-- If the Python version matches project requirements.
+**Intent**: Check project integrity or fix broken environments.
 
-## Auto-Repair
+> "Diagnose the current environment."
+> "Why is my build failing?"
+> "Fix the missing virtual environment."
 
-If diagnostics find issues, the agent can often fix them automatically.
+**System Actions**:
+-   `diagnose_environment`: Checks for `pyproject.toml`, virtual environment status, and dependency synchronization.
+-   `repair_environment`: Automatically creates `.venv`, installs Python, and syncs dependencies if broken.
 
-**Prompt:**
-> "Fix my environment."
-> "Repair the project setup."
+### UV Installation
 
-**What happens:**
-The agent calls `repair_environment`. It attempts to:
-1.  Initialize a project if missing.
-2.  Create a virtual environment.
-3.  Install a compatible Python version.
-4.  Sync dependencies.
+**Intent**: Verify or install the core `uv` tool.
 
-## Managing Dependencies
+> "Check if uv is installed."
+> "How do I install uv?"
 
-You can add or remove packages without remembering exact CLI flags.
+**System Actions**:
+-   `check_uv_installation`: Verifies `uv` presence and version.
+-   `install_uv`: Provides platform-specific installation instructions.
 
-### Adding Packages
+## Dependency Management
 
-**Prompt:**
-> "Add pandas to this project."
-> "Install pytest as a dev dependency."
-> "Add fastapi and uvicorn."
+Manage your project's libraries and packages.
 
-**What happens:**
-The agent uses `add_dependency`.
-- `uv add pandas`
-- `uv add --dev pytest`
+### Installation & Removal
 
-### Removing Packages
+**Intent**: Add or remove packages.
 
-**Prompt:**
-> "Remove numpy."
-> "Uninstall the requests library."
+> "Install pandas and numpy."
+> "Add pytest as a dev dependency."
+> "Remove the requests library."
 
-**What happens:**
-The agent uses `remove_dependency`.
+**System Actions**:
+-   `add_dependency`: Adds packages to `pyproject.toml` and installs them. Supports `--dev` and optional groups.
+-   `remove_dependency`: Removes packages from configuration and the environment.
 
-## Project Initialization
+### Synchronization
 
-Starting a new project is easy.
+**Intent**: Ensure the environment matches the lockfile.
 
-**Prompt:**
-> "Initialize a new Python app named 'my-bot'."
-> "Create a new library project called 'utils'."
-
-**What happens:**
-The agent uses `init_project`.
-- `uv init --app --name my-bot`
-
-## Advanced Workflows
-
-### Syncing and Locking
-
-If you suspect your lockfile is out of date:
-
-**Prompt:**
 > "Sync the environment."
-> "Ensure the lockfile is up to date."
+> "Upgrade all packages."
 
-### Exporting Requirements
+**System Action**:
+-   `sync_environment`: Updates the virtual environment to match `uv.lock`. Can also upgrade locked versions.
 
-If you need a `requirements.txt` for legacy systems:
+### Maintenance
 
-**Prompt:**
-> "Export the dependencies to requirements.txt."
+**Intent**: Check for updates or inspect specific packages.
+
+> "Check for outdated packages."
+> "Show details for the fastapi package."
+
+**System Actions**:
+-   `check_outdated_packages`: Lists packages that have newer versions available on PyPI.
+-   `show_package_info`: Retrieves detailed metadata (version, location, dependencies) for a specific package.
+
+## Project Inspection
+
+Visualize and understand your dependency graph.
+
+**Intent**: View installed packages.
+
+> "List all installed dependencies."
+> "Show me the dependency tree."
+
+**System Actions**:
+-   `list_dependencies`: Enumerates all installed packages. Supports a `tree` view.
+-   `analyze_dependency_tree`: visualizes the hierarchical dependency structure and calculates depth.
+
+## Runtime Management
+
+Control the Python interpreters used by your project.
+
+**Intent**: Manage Python versions.
+
+> "List available Python versions."
+> "Install Python 3.11."
+> "Pin this project to Python 3.12."
+
+**System Actions**:
+-   `list_python_versions`: Shows Python versions managed by `uv`.
+-   `install_python_version`: Downloads and installs a specific Python interpreter.
+-   `pin_python_version`: Updates `.python-version` to lock the project to a specific runtime.
+
+## Project Lifecycle
+
+**Intent**: Start or export projects.
+
+> "Initialize a new Python app named 'data-pipeline'."
+> "Export dependencies to requirements.txt."
+
+**System Actions**:
+-   `init_project`: Scaffolds a new project with `pyproject.toml`.
+-   `export_requirements`: Generates a standard `requirements.txt` file for compatibility.

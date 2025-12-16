@@ -1,54 +1,60 @@
 ---
 title: Installation
-description: How to install and configure UV-MCP.
+description: Comprehensive guide for installing and configuring the UV-MCP server.
 ---
 
 # Installation
 
-This guide will help you set up UV-MCP on your system and configure it for use with your MCP client (like Claude Desktop or Gemini CLI).
+This guide details the steps to install the UV-MCP server and configure it for use with MCP-compliant clients such as the Gemini CLI or Claude Desktop.
 
 ## Prerequisites
 
-Before installing UV-MCP, ensure you have the following:
+Ensure the following components are installed on your system:
 
-1.  **uv**: The `uv` package manager must be installed.
-    -   macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-    -   Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
-    -   [Official Installation Docs](https://docs.astral.sh/uv/getting-started/installation/)
-2.  **Python**: Python 3.10 or higher.
+1.  **uv Package Manager**:
+    -   **macOS/Linux**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+    -   **Windows**: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+    -   Reference: [Official uv Installation Guide](https://docs.astral.sh/uv/getting-started/installation/)
+2.  **Python Runtime**:
+    -   Python 3.10 or higher is required.
 
-## Installing the Server
 
-You can install `uv-mcp` directly from the repository or via `pip`. Since it's a tool intended to be run by an agent, we recommend installing it using `uv tool`.
+## Client Configuration
 
-### Option 1: Using `uv tool` (Recommended)
+To enable the server, you must register it in your client's configuration file.
 
-```bash
-uv tool install git+https://github.com/saadmanrafat/uv-mcp
-```
+### Gemini CLI
 
-This installs `uv-mcp` in an isolated environment and makes the `uv-mcp` command available.
-
-### Option 2: Using `pip`
+Locate your configuration file (typically `~/.gemini/settings.json`) and add the server definition:
 
 ```bash
-pip install uv-mcp
+gemini extensions install https://github.com/saadmanrafat/uv-mcp
 ```
 
-*(Note: Adjust command if installing from a specific source or local path)*
+```json
+{
+  "mcpServers": {
+    "uv-mcp": {
+      "command": "uv",
+      "args": [
+        "/path/to/tool",
+        "run",
+        "uv-mcp"
+      ]
+    }
+  }
+}
+```
 
-## Configuration
+### Claude Desktop
 
-To use UV-MCP with an AI client, you need to add it to your MCP configuration file.
+Modify the configuration file located at:
+-   **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+-   **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-### Finding your `mcp-config.json`
-
--   **Claude Desktop App**: usually located at `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
--   **Gemini CLI**: typically uses a configuration file passed via flags or located in `~/.gemini/config.json`.
-
-### Configuration Snippet
-
-Add the following to your `mcpServers` object:
+```bash
+claude mcp add uv-mcp --scope user -- uv --directory /path/to/uv-mcp run uv-mcp
+```
 
 ```json
 {
@@ -65,7 +71,9 @@ Add the following to your `mcpServers` object:
 }
 ```
 
-If you are developing locally or running from source:
+### Development Configuration
+
+If running from source, point the command to your local directory:
 
 ```json
 {
@@ -83,10 +91,35 @@ If you are developing locally or running from source:
 }
 ```
 
-## Verifying Installation
 
-Once configured, restart your AI client. You should be able to ask the agent:
+## Server Installation
 
-> "Check if uv is installed"
+We recommend installing `uv-mcp` using `uv tool` to ensure it runs in an isolated environment while remaining globally accessible.
 
-If the agent responds with the version of `uv`, the connection is successful.
+### Method 1: uv tool 
+
+Execute the following command to install the server directly from the repository:
+
+```bash
+uv tool install git+https://github.com/saadmanrafat/uv-mcp
+```
+
+This command creates a managed environment for `uv-mcp` and exposes the binary.
+
+### Method 2: pip / Local Development
+
+If you are contributing to the project or prefer manual management:
+
+```bash
+git clone https://github.com/saadmanrafat/uv-mcp.git
+cd uv-mcp
+uv sync
+```
+
+## Verification
+
+After configuration, restart your client. You can verify the connection by issuing a simple prompt:
+
+> "Check if uv is installed."
+
+A successful response containing the `uv` version indicates the server is active and communicating.

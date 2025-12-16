@@ -1,36 +1,56 @@
 ---
 title: Introduction
-description: Welcome to UV-MCP, the AI-powered interface for the uv package manager.
+description: An overview of UV-MCP, the AI-native interface for Python project management.
 ---
 
 # Introduction
 
-**UV-MCP** is a Model Context Protocol (MCP) server that empowers your AI assistants to manage Python environments using **uv**, the incredibly fast Python package manager written in Rust.
+**UV-MCP** is a Model Context Protocol (MCP) server designed to bridge the gap between Large Language Models (LLMs) and the **uv** Python package manager. It enables AI assistants to autonomously manage Python environments, dependencies, and project lifecycles with the speed and reliability of Rust-based tooling.
 
-## What is UV-MCP?
+## Value Proposition
 
-UV-MCP acts as a bridge between Large Language Models (LLMs) like Claude or Gemini and your local Python development environment. Instead of manually typing terminal commands to install packages, fix virtual environments, or resolve dependency conflicts, you can simply ask your AI to do it for you.
+Modern Python development involves complex environment management—virtual environments, lockfiles, and dependency resolution. UV-MCP abstracts this complexity, allowing developers to interact with their projects using natural language while ensuring rigorous adherence to best practices.
 
-## Why use UV-MCP?
+-   **Speed**: Leverages `uv` for near-instant package resolution and installation.
+-   **Correctness**: Enforces reproducible environments via universal lockfiles (`uv.lock`).
+-   **Autonomy**: Empowers agents to diagnose issues and perform self-healing operations without user intervention.
 
-Managing Python environments can be complex. `uv` simplifies this with speed and correctness, and UV-MCP takes it a step further by giving your AI agent direct access to these capabilities.
+## Core Concepts
 
-### Key Benefits
+### Model Context Protocol (MCP)
+The **Model Context Protocol** is the standard interface that allows AI models to execute code and retrieve context from local systems.
+-   **Server**: UV-MCP runs locally, exposing discrete **Tools** (e.g., `add_dependency`, `repair_environment`) to the client.
+-   **Client**: The AI interface (e.g., Gemini CLI, Claude Desktop) consumes these tools to fulfill user requests.
 
-- **Lightning Fast**: Leverages `uv`'s performance for near-instant package installations and resolutions.
-- **AI-Native**: Designed specifically for MCP-compliant agents, allowing for natural language interaction.
-- **Self-Healing**: Includes diagnostic tools that can automatically identify and repair broken environments (missing venvs, desynced lockfiles, etc.).
-- **Effortless Management**: Add, remove, and update dependencies without leaving your chat context.
+### The `uv` Engine
+UV-MCP is built on top of **uv**, an extremely fast Python package installer and resolver. It does not reinvent package management; rather, it exposes `uv`'s capabilities to the AI context layer.
 
-## What can it do?
+## Capabilities
 
-- **Diagnose Health**: instantly check if your project structure, virtual environment, and dependencies are healthy.
-- **Repair Environments**: Automatically fix common issues like missing virtual environments or uninstalled dependencies.
-- **Manage Dependencies**: Add or remove libraries with simple prompts like "Add pandas to this project".
-- **Initialize Projects**: Bootstrap new Python projects with best practices in seconds.
+UV-MCP provides a comprehensive suite of tools for the entire project lifecycle:
+
+1.  **Environment Health**:
+    -   **Diagnostics**: Comprehensive checks for project structure, interpreter validity, and dependency synchronization.
+    -   **Repair**: Automated remediation of common issues (e.g., missing venvs, desynced lockfiles).
+
+2.  **Dependency Management**:
+    -   Add, remove, and update packages.
+    -   Manage development and optional dependency groups.
+    -   Export locked dependencies to standard formats.
+
+3.  **Introspection**:
+    -   Analyze dependency trees and hierarchies.
+    -   Audit outdated packages and security implications.
+    -   Retrieve detailed metadata for installed libraries.
+
+4.  **Project Scaffolding**:
+    -   Initialize new applications or libraries with industry-standard templates.
+    -   Manage Python version pinning and installation.
 
 ## Next Steps
 
-- **[Installation](/uv-mcp/guides/installation)**: Get UV-MCP running on your system.
-- **[Usage Guide](/uv-mcp/guides/usage)**: Learn how to interact with the tools.
-- **[Architecture](/uv-mcp/guides/architecture)**: Understand how it works under the hood.
+To begin using UV-MCP, proceed to the following guides:
+
+-   **[Installation](/uv-mcp/guides/installation)**: Setup instructions for your operating system and AI client.
+-   **[Usage](/uv-mcp/guides/usage)**: Common workflows and prompt engineering examples.
+-   **[Tool Reference](/uv-mcp/reference/tools)**: Technical API documentation for all available tools.
