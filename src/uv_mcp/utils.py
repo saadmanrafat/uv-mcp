@@ -12,11 +12,13 @@ logger = logging.getLogger(__name__)
 
 class UVError(Exception):
     """Base exception for UV operations."""
+
     ...
 
 
 class UVNotFoundError(UVError):
     """Raised when uv executable is not found."""
+
     ...
 
 
@@ -92,7 +94,10 @@ async def check_uv_available() -> tuple[bool, str | None]:
 
 
 async def run_uv_command(
-    args: list[str], cwd: Path | None = None, timeout: float = 120.0
+    args: list[str],
+    cwd: Path | None = None,
+    timeout: float = 120.0,
+    env: dict[str, str] | None = None,
 ) -> tuple[bool, str, str]:
     """
     Execute a uv command with given arguments.
@@ -101,6 +106,7 @@ async def run_uv_command(
         args: List of command arguments (e.g., ["add", "requests"])
         cwd: Working directory for the command
         timeout: Timeout in seconds (default: 120.0)
+        env: Optional dictionary of environment variables
 
     Returns:
         Tuple of (success, stdout, stderr)
@@ -114,6 +120,7 @@ async def run_uv_command(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
+            env=env,
         )
 
         stdout_bytes, stderr_bytes = await asyncio.wait_for(

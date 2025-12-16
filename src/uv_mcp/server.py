@@ -8,18 +8,32 @@ from fastmcp import FastMCP
 
 from .actions import (
     add_dependency_action,
+    analyze_dependency_tree_action,
+    check_outdated_packages_action,
     check_uv_installation_action,
     get_install_instructions_action,
+    install_python_version_action,
+    list_dependencies_action,
+    list_python_versions_action,
+    pin_python_version_action,
     remove_dependency_action,
     repair_environment_action,
+    show_package_info_action,
 )
 from .diagnostics import generate_diagnostic_report
 from .models import (
+    DependencyListResult,
     DependencyOperationResult,
     DiagnosticReport,
     DiagnosticReportSummary,
     InstallInstructions,
+    OutdatedCheckResult,
+    PackageInfoResult,
+    PythonInstallResult,
+    PythonListResult,
+    PythonPinResult,
     RepairResult,
+    TreeAnalysisResult,
     UVCheckResult,
 )
 from .tools import ProjectTools
@@ -205,6 +219,113 @@ async def sync_environment(upgrade: bool = False, locked: bool = False) -> str:
 async def export_requirements(output_file: str = "requirements.txt") -> str:
     """Export the current locked dependencies to a requirements.txt file."""
     return await ProjectTools.export_requirements(output_file=output_file)
+
+
+@mcp.tool()
+async def list_python_versions() -> PythonListResult:
+    """
+    List installed Python versions managed by uv.
+
+    Returns:
+        PythonListResult containing a list of versions and raw output.
+    """
+    return await list_python_versions_action()
+
+
+@mcp.tool()
+async def install_python_version(version: str) -> PythonInstallResult:
+    """
+    Install a specific Python version using uv.
+
+    Args:
+        version: The version to install (e.g., "3.12", "3.13", "pypy@3.10")
+
+    Returns:
+        PythonInstallResult with success status.
+    """
+    return await install_python_version_action(version)
+
+
+@mcp.tool()
+async def pin_python_version(version: str) -> PythonPinResult:
+    """
+    Pin the current project to use a specific Python version.
+
+    This updates the .python-version file in the project root.
+
+    Args:
+        version: The version to pin (e.g., "3.12")
+
+    Returns:
+        PythonPinResult with success status.
+    """
+    return await pin_python_version_action(version)
+
+
+@mcp.tool()
+async def list_dependencies(
+    project_path: str | None = None, tree: bool = False
+) -> DependencyListResult:
+    """
+    List project dependencies.
+
+    Args:
+        project_path: Path to the project root.
+        tree: If True, returns a visual tree structure. If False, returns a flat list.
+
+    Returns:
+        DependencyListResult with dependencies.
+    """
+    return await list_dependencies_action(project_path, tree)
+
+
+@mcp.tool()
+async def show_package_info(
+    package_name: str, project_path: str | None = None
+) -> PackageInfoResult:
+    """
+    Show detailed information about a specific package.
+
+    Args:
+        package_name: The name of the package to inspect.
+        project_path: Optional path to the project root.
+
+    Returns:
+        PackageInfoResult with metadata.
+    """
+    return await show_package_info_action(package_name, project_path)
+
+
+@mcp.tool()
+async def check_outdated_packages(
+    project_path: str | None = None,
+) -> OutdatedCheckResult:
+    """
+    Check for outdated packages in the environment.
+
+    Args:
+        project_path: Path to the project root.
+
+    Returns:
+        OutdatedCheckResult with a list of outdated packages.
+    """
+    return await check_outdated_packages_action(project_path)
+
+
+@mcp.tool()
+async def analyze_dependency_tree(
+    project_path: str | None = None,
+) -> TreeAnalysisResult:
+    """
+    Analyze the dependency tree for structure and depth.
+
+    Args:
+        project_path: Path to the project root.
+
+    Returns:
+        TreeAnalysisResult with the tree output and metrics.
+    """
+    return await analyze_dependency_tree_action(project_path)
 
 
 def main():

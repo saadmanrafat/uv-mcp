@@ -114,3 +114,81 @@ class DiagnosticReport(BaseModel):
     project_info: ProjectInfo | None = None
     critical_issues: list[str] = []
     summary: DiagnosticReportSummary | None = None
+
+
+class PythonVersion(BaseModel):
+    version: str
+    path: str | None = None
+    origin: str | None = None
+
+
+class PythonListResult(BaseModel):
+    versions: list[PythonVersion]
+    output: str
+
+
+class PythonInstallResult(BaseModel):
+    version: str
+    success: bool
+    output: str | None = None
+    error: str | None = None
+
+
+class PythonPinResult(BaseModel):
+    version: str
+    project_dir: str
+    success: bool
+    output: str | None = None
+    error: str | None = None
+
+
+class DependencyItem(BaseModel):
+    name: str
+    version: str
+    editable: bool = False
+    location: str | None = None
+    installer: str | None = None
+
+
+class DependencyListResult(BaseModel):
+    project_dir: str
+    dependencies: list[DependencyItem] = []
+    tree_output: str | None = None
+    is_tree: bool
+    count: int
+    success: bool
+    error: str | None = None
+
+
+class PackageInfoResult(BaseModel):
+    name: str
+    version: str | None = None
+    location: str | None = None
+    requires: list[str] = []
+    required_by: list[str] = []
+    metadata: dict[str, str] = {}  # License, Author, etc.
+    success: bool
+    error: str | None = None
+
+
+class OutdatedPackage(BaseModel):
+    name: str
+    version: str
+    latest_version: str
+    type: str | None = None  # e.g., "wheel", "sdist"
+
+
+class OutdatedCheckResult(BaseModel):
+    project_dir: str
+    outdated_packages: list[OutdatedPackage]
+    count: int
+    success: bool
+    error: str | None = None
+
+
+class TreeAnalysisResult(BaseModel):
+    project_dir: str
+    tree_output: str
+    depth: int | None = None
+    success: bool
+    error: str | None = None
