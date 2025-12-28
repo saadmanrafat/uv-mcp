@@ -7,11 +7,11 @@ description: Release history and version updates for UV-MCP.
 
 ## [0.6.4] - 2025-12-28
 
-### 🎉 Major Release
+### Major Release
 
 This release adds powerful new build and cache management tools, comprehensive error handling, and extensive edge case testing.
 
-### ✨ New Features
+### New Features
 
 #### Build & Distribution Tools
 
@@ -64,13 +64,13 @@ This release adds powerful new build and cache management tools, comprehensive e
   - Memory and performance (1000+ dependencies, 10MB+ output)
   - Boundary conditions (name lengths, dependency sizes)
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
 - Fixed pytest async marker warnings in test suite
 - Fixed `CacheOperationResult` model default values
 - All 134 tests now pass cleanly (133 passed, 1 intentionally skipped)
 
-### 📚 Documentation
+### Documentation
 
 Added 6 comprehensive documentation files:
 - `IMPROVEMENTS.md` - Technical changelog
@@ -80,7 +80,7 @@ Added 6 comprehensive documentation files:
 - `NAMING_CONVENTIONS.md` - MCP naming compliance
 - `FINAL_SUMMARY.md` - Complete project report
 
-### 📊 Metrics
+### Metrics
 
 - **Total MCP Tools**: 19 (↑ 3 new)
 - **Total Tests**: 134 (↑ 56 new)
