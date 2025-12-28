@@ -123,10 +123,10 @@ def main():
             all_passed = False
             
     if all_passed:
-        print("\n✅ All checks passed!")
+        print("\n All checks passed!")
         sys.exit(0)
     else:
-        print("\n❌ Checks failed!")
+        print("\n Checks failed!")
         sys.exit(1)
 
 if __name__ == "__main__":

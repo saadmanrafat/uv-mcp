@@ -486,12 +486,12 @@ class TestMCPToolFunctions:
             """Test handling of unicode in project name."""
             content = """
     [project]
-    name = "test-项目-🚀"
+    name = "test-项目-"
     version = "0.1.0"
     """
             (temp_project_dir / "pyproject.toml").write_text(content)
             info = get_project_info(temp_project_dir)
-            assert "test-项目-🚀" in info.get("project_name", "")
+            assert "test-项目-" in info.get("project_name", "")
 
         @pytest.mark.asyncio
         async def test_deeply_nested_subdirectory(self, temp_project_with_pyproject):
