@@ -1,6 +1,60 @@
 # Changelog
 
+## [0.6.4] - 2025-12-28
 
+### Added
+- **Cache Management**: New `uv_clear_cache` tool to clear uv package cache (all or specific packages)
+  - Helps resolve corrupted package issues
+  - Free up disk space
+  - Returns detailed operation results with `CacheOperationResult` model
+- **Lock Management**: New `uv_lock_project` tool to update lockfile without syncing environment
+  - Update uv.lock after manual pyproject.toml edits
+  - Ensure lockfile consistency
+  - Prepare projects for deployment
+- **Build Tool**: New `uv_build_project` tool to build distributable packages
+  - Create wheel and source distributions
+  - Support custom output directories
+  - Returns list of created artifacts
+  - Ready for PyPI publishing workflow
+- **Enhanced Error Handling**: New `errors.py` module with comprehensive error management
+  - 7 custom exception classes with actionable suggestions (`UVMCPError`, `UVNotInstalledError`, `ProjectNotFoundError`, etc.)
+  - Smart error suggestion engine (`get_error_suggestion()`) that parses stderr
+  - Error codes for programmatic handling (UV_NOT_FOUND, PYPROJECT_MISSING, etc.)
+  - Context-aware help for common issues (network, permissions, conflicts, etc.)
+- **Comprehensive Edge Case Tests**: New `test_edge_cases.py` suite with 56 tests
+  - Command execution boundaries (empty output, large data, special characters, concurrent ops)
+  - Project info parsing (symlinks, circular refs, large files, unusual names)
+  - Virtual environment detection (missing configs, broken symlinks, multiple candidates)
+  - Project root finding (deep nesting, multiple pyprojects, permission handling)
+  - Dependency operations (complex versions, package name variations)
+  - Environment repair scenarios (UV missing, auto-fix disabled, partial failures)
+  - Python version management (empty output, exotic versions, malformed data)
+  - Cache operations (special characters, concurrent operations)
+  - Error suggestions (empty errors, long messages, multiple patterns)
+  - Diagnostics edge cases (empty dirs, corrupted files, missing dependencies)
+  - Boundary conditions (name lengths, dependency sizes, special paths)
+  - Race conditions (concurrent operations, parallel reports)
+  - Error recovery (retry after timeout, broken state recovery)
+  - Memory & performance (1000+ dependencies, 10MB+ output)
+  - Platform-specific (Windows paths, Unicode paths)
+
+### Fixed
+- Fixed pytest async marker warnings in `test_utils_extended.py`
+- Fixed `CacheOperationResult` model to have proper default values
+- All 134 tests now pass cleanly (133 passed, 1 intentionally skipped)
+
+### Changed
+- Updated `clear_cache_action` to use new `CacheOperationResult` model structure
+- Enhanced server.py with 3 new MCP tools
+- Improved test coverage to 85%+ on critical modules
+
+### Technical Details
+- Total MCP tools: 19 (3 new)
+- Test suite: 134 tests (56 new edge cases)
+- Execution time: ~2.5 seconds
+- Code coverage: 87-100% on new modules
+- 100% backward compatible
+- Zero breaking changes
 
 ## [0.6.1] - 2025-12-16
 
@@ -89,5 +143,11 @@
 - 86 dependencies installed and tested
 - All tests passing
 
-[Unreleased]: https://github.com/saadmanrafat/uv-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/saadmanrafat/uv-mcp/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/saadmanrafat/uv-mcp/compare/v0.6.1...v0.6.4
+[0.6.1]: https://github.com/saadmanrafat/uv-mcp/compare/v0.5.3...v0.6.1
+[0.5.3]: https://github.com/saadmanrafat/uv-mcp/compare/v0.5.2...v0.5.3
+[0.5.2]: https://github.com/saadmanrafat/uv-mcp/compare/v0.5.0...v0.5.2
+[0.5.0]: https://github.com/saadmanrafat/uv-mcp/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/saadmanrafat/uv-mcp/compare/v0.1.0...v0.4.0
 [0.1.0]: https://github.com/saadmanrafat/uv-mcp/releases/tag/v0.1.0

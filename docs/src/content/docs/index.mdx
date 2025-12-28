@@ -33,4 +33,19 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	<Card title="Deep Introspection" icon="magnifier">
 		Visualize dependency trees, audit outdated packages, and inspect metadata with precision.
 	</Card>
+	<Card title="Build & Distribution" icon="rocket">
+		Build wheel and source distributions ready for PyPI publishing (v0.6.4+).
+	</Card>
+	<Card title="Enhanced Error Handling" icon="warning">
+		Actionable error messages with suggestions to resolve issues quickly (v0.6.4+).
+	</Card>
 </CardGrid>
+
+## What's New in v0.6.4
+
+- **Cache Management**: Clear UV package cache to resolve corrupted packages or free disk space
+- **Lock Management**: Update lockfiles without syncing the entire environment
+- **Build Tools**: Create distributable wheel and source packages for PyPI
+- **Enhanced Errors**: Get actionable suggestions with every error message
+- **56 New Tests**: Comprehensive edge case testing for robustness
+- **100% Backward Compatible**: All existing tools work unchanged

@@ -109,3 +109,133 @@ Control the Python interpreters used by your project.
 **System Actions**:
 -   `init_project`: Scaffolds a new project with `pyproject.toml`.
 -   `export_requirements`: Generates a standard `requirements.txt` file for compatibility.
+
+## Build & Distribution (v0.6.4+)
+
+New workflows for packaging and distributing your Python projects.
+
+### Building Packages
+
+**Intent**: Create distributable packages for PyPI or local installation.
+
+> "Build wheel and source distributions for this project."
+> "Create a PyPI-ready package."
+> "Build only a wheel file."
+
+**System Actions**:
+-   `build_project`: Creates wheel (.whl) and source distribution (.tar.gz) files.
+    - Supports selective building (wheel-only or sdist-only)
+    - Custom output directories
+    - Returns list of created artifacts
+
+**Example Workflow**:
+```bash
+# 1. Ensure project is ready
+> "Diagnose the environment"
+
+# 2. Update lockfile
+> "Update the lockfile"
+
+# 3. Build packages
+> "Build wheel and source distributions"
+
+# Result: dist/myproject-0.1.0.tar.gz and dist/myproject-0.1.0-py3-none-any.whl
+```
+
+### Lockfile Management
+
+**Intent**: Update dependency lockfile without installing packages.
+
+> "Update the lockfile."
+> "Regenerate uv.lock without syncing."
+> "Lock dependencies to current versions."
+
+**System Actions**:
+-   `lock_project`: Updates `uv.lock` to reflect `pyproject.toml` changes without installing.
+
+**Use Cases**:
+- After manually editing `pyproject.toml`
+- Before committing to version control
+- In CI/CD pipelines for reproducible builds
+
+### Cache Management
+
+**Intent**: Clear package cache to resolve issues or free space.
+
+> "Clear the package cache."
+> "Remove cached version of requests."
+> "Fix corrupted package installation."
+
+**System Actions**:
+-   `clear_cache`: Removes cached package data (entire cache or specific package).
+
+**When to Use**:
+- Corrupted package installations
+- Checksum mismatch errors
+- Disk space constraints
+- Dependency resolution failures
+
+**Example Scenarios**:
+```bash
+# Clear entire cache
+> "Clear all cached packages"
+
+# Clear specific package
+> "Clear the cache for numpy"
+
+# After clearing, reinstall
+> "Sync the environment"
+```
+
+## Error Handling & Troubleshooting (v0.6.4+)
+
+### Understanding Error Messages
+
+All tools now provide structured errors with actionable suggestions:
+
+```json
+{
+  "error": "No pyproject.toml found in /path/to/project",
+  "error_code": "PYPROJECT_MISSING",
+  "suggestion": "Initialize the project with init_project or repair_environment"
+}
+```
+
+### Common Issues & Solutions
+
+**UV Not Installed**:
+> "How do I install uv?"
+
+System provides platform-specific installation commands.
+
+**Missing Dependencies**:
+> "Why can't I import pandas?"
+> "Sync the environment"
+
+System detects and installs missing packages.
+
+**Version Conflicts**:
+> "Fix dependency conflicts"
+> "Clear cache and sync environment"
+
+System suggests clearing cache and updating lockfile.
+
+**Corrupted Packages**:
+> "Package installation is broken"
+> "Clear cache for [package-name]"
+
+System removes corrupted cache and reinstalls.
+
+### Diagnostic Workflow
+
+For any environment issue:
+
+1. **Diagnose**: `> "Diagnose the environment"`
+2. **Review Issues**: Check returned diagnostics
+3. **Repair**: `> "Repair the environment"`
+4. **Verify**: `> "Diagnose again"`
+
+If issues persist:
+- Clear cache: `> "Clear the package cache"`
+- Update lockfile: `> "Update lockfile"`
+- Sync environment: `> "Sync environment"`

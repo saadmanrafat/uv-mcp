@@ -192,3 +192,75 @@ class TreeAnalysisResult(BaseModel):
     depth: int | None = None
     success: bool
     error: str | None = None
+
+
+class ProjectInitResult(BaseModel):
+    """Result of project initialization."""
+
+    project_name: str
+    project_dir: str
+    python_version: str
+    template: str  # "app" or "lib"
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None
+    created_files: list[str] = []  # ["pyproject.toml", ".python-version", ...]
+
+
+class SyncResult(BaseModel):
+    """Result of environment sync operation."""
+
+    project_dir: str
+    success: bool
+    upgraded: bool = False  # Was --upgrade used?
+    locked: bool = False  # Was --locked used?
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    packages_installed: int | None = None
+    packages_updated: int | None = None
+    message: str | None = None
+    output: str | None = None
+    error: str | None = None
+
+
+class ExportResult(BaseModel):
+    """Result of requirements export operation."""
+
+    project_dir: str
+    file_format: str  # "requirements-txt", etc.
+    output_file: str | None = None  # If file was written
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    content: str | None = None  # If exported to stdout
+    line_count: int | None = None
+    message: str | None = None
+    error: str | None = None
+
+
+class BuildResult(BaseModel):
+    """Result of package build operation."""
+
+    project_dir: str
+    output_dir: str
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    artifacts: list[str] = (
+        []
+    )  # ["dist/myapp-0.1.0.tar.gz", "dist/myapp-0.1.0-py3-none-any.whl"]
+    message: str | None = None
+    error: str | None = None
+
+
+class CacheOperationResult(BaseModel):
+    """Result of cache operations."""
+
+    operation: str = "clean"  # "clean", "prune", "info"
+    package: str | None = None  # Specific package if applicable
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    cache_size_before: str | None = None  # "1.2 GB"
+    cache_size_after: str | None = None  # "500 MB"
+    space_freed: str | None = None  # "700 MB"
+    message: str | None = None
+    output: str | None = None
+    error: str | None = None

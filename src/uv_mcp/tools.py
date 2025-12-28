@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from .models import ProjectInitResult, SyncResult
 from .utils import run_uv_command
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class ProjectTools:
         python_version: str = "3.12",
         path: str | None = None,
         template: str = "app",
-    ) -> str:
+    ) -> ProjectInitResult | str:
         """
         Initialize a new Python Project with uv
 
@@ -67,7 +68,7 @@ class ProjectTools:
     @staticmethod
     async def sync_environment(
         project_path: str | None = None, upgrade: bool = False, locked: bool = False
-    ) -> str:
+    ) -> SyncResult | str:
         """
         Sync the environment with pyproject.toml or uv.lock
 
@@ -105,7 +106,7 @@ class ProjectTools:
         project_path: str | None = None,
         file_format: str = "requirements-txt",
         output_file: str | None = None,
-    ) -> str:
+    ) -> SyncResult | str:
         """
         Export dependencies to requirements.txt or other formats.
 

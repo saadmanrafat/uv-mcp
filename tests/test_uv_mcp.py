@@ -14,6 +14,7 @@ import pytest
 
 # Import modules under test
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from uv_mcp.utils import (
@@ -36,12 +37,9 @@ from uv_mcp.models import (
     DiagnosticReport,
     StructureCheck,
     DependencyCheck,
-    PythonCheck
+    PythonCheck,
 )
 
-# =============================================================================
-# Fixtures
-# =============================================================================
 
 @pytest.fixture
 def temp_project_dir():
@@ -71,7 +69,9 @@ build-backend = "hatchling.build"
 @pytest.fixture
 def temp_project_with_requirements(temp_project_dir):
     """Create a temporary project with requirements.txt."""
-    (temp_project_dir / "requirements.txt").write_text("requests>=2.28.0\npytest>=7.0.0\n")
+    (temp_project_dir / "requirements.txt").write_text(
+        "requests>=2.28.0\npytest>=7.0.0\n"
+    )
     return temp_project_dir
 
 
@@ -83,10 +83,6 @@ def temp_project_with_venv(temp_project_with_pyproject):
     (venv_dir / "pyvenv.cfg").write_text("home = /usr/bin\n")
     return temp_project_with_pyproject
 
-
-# =============================================================================
-# utils tests
-# =============================================================================
 
 class TestCheckUvAvailable:
     """Tests for check_uv_available function."""
@@ -251,12 +247,9 @@ class TestFindUvProjectRoot:
         assert root is None
 
 
-# =============================================================================
-# diagnostics tests
-# =============================================================================
-
 class TestGetWorstHealth:
     """Tests for _get_worst_health helper function."""
+
     def test_critical_beats_warning(self):
         """Test that critical status beats warning."""
         assert _get_worst_health("warning", "critical") == "critical"
@@ -307,14 +300,18 @@ class TestCheckProjectStructure:
     @patch.dict(os.environ, {}, clear=True)
     @patch("uv_mcp.diagnostics.check_project_venv")
     @pytest.mark.asyncio
-    async def test_missing_venv_warning(self, mock_check_venv, temp_project_with_pyproject):
+    async def test_missing_venv_warning(
+        self, mock_check_venv, temp_project_with_pyproject
+    ):
         """Test warning when no virtual environment present."""
         # Mock to simulate no venv
         mock_check_venv.return_value = (False, None)
         result = check_project_structure(temp_project_with_pyproject)
         # Check for either "virtual environment" or "venv" in warnings
-        has_venv_warning = any("virtual environment" in w.lower() or "venv" in w.lower()
-                               for w in result.warnings)
+        has_venv_warning = any(
+            "virtual environment" in w.lower() or "venv" in w.lower()
+            for w in result.warnings
+        )
         assert has_venv_warning or len(result.warnings) > 0
 
     @pytest.mark.asyncio
@@ -351,7 +348,10 @@ class TestCheckPythonVersion:
         """Test that current Python version is returned."""
         result = await check_python_version(temp_project_dir)
         assert isinstance(result, PythonCheck)
-        assert result.current_version == "unknown" or result.current_version.count(".") >= 1
+        assert (
+            result.current_version == "unknown"
+            or result.current_version.count(".") >= 1
+        )
 
     @pytest.mark.asyncio
     async def test_compatible_by_default(self, temp_project_dir):
@@ -384,10 +384,6 @@ class TestGenerateDiagnosticReport:
         assert result.overall_health in ["healthy", "warning", "critical"]
 
 
-# =============================================================================
-# MCP Tool tests (using underlying implementations)
-# =============================================================================
-
 class TestMCPToolFunctions:
     """Tests for MCP tool functionality using underlying implementations."""
 
@@ -401,19 +397,21 @@ class TestMCPToolFunctions:
             assert "uv" in version.lower() or version[0].isdigit()
 
     @pytest.mark.asyncio
-    async def test_generate_diagnostic_report_structure(self, temp_project_with_pyproject):
+    async def test_generate_diagnostic_report_structure(
+        self, temp_project_with_pyproject
+    ):
         """Test diagnostic report has expected structure."""
         report = await generate_diagnostic_report(temp_project_with_pyproject)
-        
+
         # Check required sections
         assert report.uv is not None
         assert report.structure is not None
         assert report.project_info is not None
         assert report.overall_health is not None
-        
+
         # Check uv section
         assert report.uv.installed is not None
-        
+
         # Check structure section
         assert report.structure.valid is not None
         assert isinstance(report.structure.issues, list)
@@ -423,7 +421,7 @@ class TestMCPToolFunctions:
     async def test_get_project_info_complete(self, temp_project_with_pyproject):
         """Test project info extraction is complete."""
         info = get_project_info(temp_project_with_pyproject)
-        
+
         assert info["has_pyproject"] is True
         assert info["project_name"] == "test-project"
         assert "dependencies" in info
@@ -436,10 +434,6 @@ class TestMCPToolFunctions:
         report = await generate_diagnostic_report(temp_project_dir)
         assert report.overall_health in ["critical", "warning"]
 
-    # =============================================================================
-    # Integration tests
-    # =============================================================================
-
     class TestIntegration:
         """Integration tests for the full workflow."""
 
@@ -448,12 +442,12 @@ class TestMCPToolFunctions:
             """Test complete diagnostic workflow."""
             # Generate diagnostic report
             report = await generate_diagnostic_report(temp_project_with_pyproject)
-            
+
             # Should have all sections
             assert report.uv is not None
             assert report.structure is not None
             assert report.project_info is not None
-            
+
             # Project info should be populated
             assert report.project_info.project_name == "test-project"
 
@@ -462,15 +456,11 @@ class TestMCPToolFunctions:
             """Test project with complete structure."""
             # Add lockfile
             (temp_project_with_venv / "uv.lock").write_text("# lockfile content")
-            
+
             report = await generate_diagnostic_report(temp_project_with_venv)
-            
+
             # Should have minimal warnings with full setup
             assert report.project_info.has_lockfile is True
-
-    # =============================================================================
-    # Edge case tests
-    # =============================================================================
 
     class TestEdgeCases:
         """Tests for edge cases and error conditions."""

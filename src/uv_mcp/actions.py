@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from .models import (
+    CacheOperationResult,
     DependencyItem,
     DependencyListResult,
     DependencyOperationResult,
@@ -736,4 +737,21 @@ async def analyze_dependency_tree_action(
         tree_output=stdout,
         depth=max_depth,
         success=True,
+    )
+
+
+async def clear_cache_action(package: str | None = None) -> CacheOperationResult:
+    """Clear uv cache for a specific package or all packages."""
+    cmd = ["cache", "clean"]
+    if package:
+        cmd.append(package)
+
+    success, stdout, stderr = await run_uv_command(cmd)
+    return CacheOperationResult(
+        operation="clean",
+        package=package,
+        success=success,
+        message="Cache cleared successfully" if success else "Failed to clear cache",
+        output=stdout if success else None,
+        error=stderr if not success else None,
     )

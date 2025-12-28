@@ -1,14 +1,13 @@
 [project]
 name = "uv-mcp"
-version = "0.6.1"
+version = "0.6.4"
 description = "Bridge modern, reproducible Python environments with MCP agents. Diagnose, self-heal, and manage uv workflows"
 authors = [{ name = "Saadman Rafat", email = "saadman@outlook.com" }]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=0.2.0",
     "pydantic>=2.12.5",
-    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.scripts]

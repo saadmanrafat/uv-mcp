@@ -169,6 +169,109 @@ Downloads a new interpreter.
 
 Sets the project's Python version.
 
--   **Signature**: `pin_python_version(version: str) -> str`
+-   **Signature**: `pin_python_version(version: str, project_path: str = None) -> dict`
 -   **Description**: Updates `.python-version` to lock the project to a specific runtime.
--   **Returns**: Success status.
+-   **Parameters**:
+    -   `version`: Python version (e.g., "3.12", "3.11").
+    -   `project_path` (optional): Path to project root.
+-   **Returns**: Success status with PythonPinResult.
+
+## Build & Distribution (v0.6.4+)
+
+New tools for building and distributing Python packages.
+
+### `build_project`
+
+Builds distributable packages for PyPI or local installation.
+
+-   **Signature**: `build_project(project_path: str = None, wheel: bool = True, sdist: bool = True, output_dir: str = None) -> dict`
+-   **Description**: Creates wheel and/or source distributions from your project.
+-   **Parameters**:
+    -   `project_path` (optional): Path to project root.
+    -   `wheel` (optional): Build wheel package (.whl). Default: `True`.
+    -   `sdist` (optional): Build source distribution (.tar.gz). Default: `True`.
+    -   `output_dir` (optional): Custom output directory. Default: "dist/".
+-   **Returns**: Dict with build results including list of created artifacts.
+-   **Example**:
+    ```python
+    result = await build_project(wheel=True, sdist=True)
+    # Returns: {"success": True, "artifacts": ["dist/myapp-0.1.0.tar.gz", "dist/myapp-0.1.0-py3-none-any.whl"]}
+    ```
+
+### `lock_project`
+
+Updates the lockfile without syncing the environment.
+
+-   **Signature**: `lock_project(project_path: str = None) -> dict`
+-   **Description**: Creates or updates `uv.lock` to match `pyproject.toml` dependencies without installing them.
+-   **Parameters**:
+    -   `project_path` (optional): Path to project root.
+-   **Returns**: SyncResult with operation status.
+-   **Use Cases**:
+    -   After manually editing `pyproject.toml`
+    -   Before committing to ensure lockfile consistency
+    -   To update lockfile for deployment pipelines
+-   **Example**:
+    ```python
+    result = await lock_project()
+    # Updates uv.lock without installing packages
+    ```
+
+### `clear_cache`
+
+Clears the UV package cache to resolve corrupted packages or free disk space.
+
+-   **Signature**: `clear_cache(package: str = None) -> dict`
+-   **Description**: Removes cached package data. Can clear entire cache or specific package.
+-   **Parameters**:
+    -   `package` (optional): Specific package name to clear. If omitted, clears entire cache.
+-   **Returns**: CacheOperationResult with operation details.
+-   **Use Cases**:
+    -   Resolve corrupted package installations
+    -   Fix checksum mismatch errors
+    -   Free up disk space
+    -   Troubleshoot dependency resolution issues
+-   **Examples**:
+    ```python
+    # Clear entire cache
+    await clear_cache()
+    
+    # Clear specific package
+    await clear_cache(package="requests")
+    ```
+
+## Error Handling (v0.6.4+)
+
+Enhanced error reporting with actionable suggestions.
+
+### Error Response Format
+
+All tools now return structured errors with:
+
+-   **error_code**: Machine-readable error identifier (e.g., "UV_NOT_FOUND", "PYPROJECT_MISSING")
+-   **message**: Human-readable error description
+-   **suggestion**: Actionable steps to resolve the issue
+-   **timestamp**: When the error occurred
+
+### Common Error Codes
+
+| Error Code | Description | Suggestion |
+|------------|-------------|------------|
+| `UV_NOT_FOUND` | UV is not installed | Install UV using provided installation commands |
+| `PYPROJECT_MISSING` | No pyproject.toml found | Initialize project with `init_project` or `repair_environment` |
+| `PROJECT_NOT_FOUND` | Project directory doesn't exist | Check path or create directory |
+| `DEPENDENCY_CONFLICT` | Version conflicts detected | Check constraints, update lockfile, or upgrade packages |
+| `VENV_MISSING` | Virtual environment not found | Run `repair_environment` to create .venv |
+| `PACKAGE_NOT_FOUND` | Package doesn't exist in PyPI | Verify package name on pypi.org |
+| `INVALID_PYTHON_VERSION` | Python version incompatible | Check available versions with `list_python_versions` |
+
+### Example Error Response
+
+```json
+{
+  "success": false,
+  "error": "uv is not installed on this system",
+  "error_code": "UV_NOT_FOUND",
+  "suggestion": "Install uv using: curl -LsSf https://astral.sh/uv/install.sh | sh\nOr use the install_uv tool for platform-specific instructions"
+}
+```

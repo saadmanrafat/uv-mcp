@@ -11,6 +11,7 @@ from .actions import (
     analyze_dependency_tree_action,
     check_outdated_packages_action,
     check_uv_installation_action,
+    clear_cache_action,
     get_install_instructions_action,
     install_python_version_action,
     list_dependencies_action,
@@ -22,6 +23,7 @@ from .actions import (
 )
 from .diagnostics import generate_diagnostic_report
 from .models import (
+    CacheOperationResult,
     DependencyListResult,
     DependencyOperationResult,
     DiagnosticReport,
@@ -29,10 +31,12 @@ from .models import (
     InstallInstructions,
     OutdatedCheckResult,
     PackageInfoResult,
+    ProjectInitResult,
     PythonInstallResult,
     PythonListResult,
     PythonPinResult,
     RepairResult,
+    SyncResult,
     TreeAnalysisResult,
     UVCheckResult,
 )
@@ -47,7 +51,7 @@ mcp = FastMCP("uv-mcp")
 
 
 @mcp.tool()
-async def check_uv_installation() -> UVCheckResult:
+async def uv_check_installation() -> UVCheckResult:
     """
     Check if uv is installed and return version information.
 
@@ -58,7 +62,7 @@ async def check_uv_installation() -> UVCheckResult:
 
 
 @mcp.tool()
-async def install_uv() -> InstallInstructions:
+async def uv_install() -> InstallInstructions:
     """
     Provide installation instructions for uv.
 
@@ -72,7 +76,7 @@ async def install_uv() -> InstallInstructions:
 
 
 @mcp.tool()
-async def diagnose_environment(project_path: str | None = None) -> DiagnosticReport:
+async def uv_diagnose_environment(project_path: str | None = None) -> DiagnosticReport:
     """
     Analyze the health of a Python environment and project.
 
@@ -129,7 +133,7 @@ async def diagnose_environment(project_path: str | None = None) -> DiagnosticRep
 
 
 @mcp.tool()
-async def repair_environment(
+async def uv_repair_environment(
     project_path: str | None = None, auto_fix: bool = True
 ) -> RepairResult:
     """
@@ -152,7 +156,7 @@ async def repair_environment(
 
 
 @mcp.tool()
-async def add_dependency(
+async def uv_add_dependency(
     package: str,
     project_path: str | None = None,
     dev: bool = False,
@@ -177,7 +181,7 @@ async def add_dependency(
 
 
 @mcp.tool()
-async def remove_dependency(
+async def uv_remove_dependency(
     package: str,
     project_path: str | None = None,
     dev: bool = False,
@@ -202,27 +206,29 @@ async def remove_dependency(
 
 
 @mcp.tool()
-async def init_project(
+async def uv_initialize_project(
     name: str, python_version: str = "3.12", template: str = "app"
-) -> str:
+) -> ProjectInitResult:
     """Initialize a new Python project (app or lib) with a specific Python version."""
     return await ProjectTools.init_project(name, python_version, template=template)
 
 
 @mcp.tool()
-async def sync_environment(upgrade: bool = False, locked: bool = False) -> str:
+async def uv_sync_environment(
+    upgrade: bool = False, locked: bool = False
+) -> SyncResult:
     """Sync the environment. Use this to install missing deps or ensure lockfile consistency."""
     return await ProjectTools.sync_environment(upgrade=upgrade, locked=locked)
 
 
 @mcp.tool()
-async def export_requirements(output_file: str = "requirements.txt") -> str:
+async def uv_export_requirements(output_file: str = "requirements.txt") -> SyncResult:
     """Export the current locked dependencies to a requirements.txt file."""
     return await ProjectTools.export_requirements(output_file=output_file)
 
 
 @mcp.tool()
-async def list_python_versions() -> PythonListResult:
+async def uv_list_python_versions() -> PythonListResult:
     """
     List installed Python versions managed by uv.
 
@@ -233,7 +239,7 @@ async def list_python_versions() -> PythonListResult:
 
 
 @mcp.tool()
-async def install_python_version(version: str) -> PythonInstallResult:
+async def uv_install_python_version(version: str) -> PythonInstallResult:
     """
     Install a specific Python version using uv.
 
@@ -247,7 +253,10 @@ async def install_python_version(version: str) -> PythonInstallResult:
 
 
 @mcp.tool()
-async def pin_python_version(version: str) -> PythonPinResult:
+async def uv_pin_python_version(
+    version: str,
+    project_path: str | None = None,
+) -> PythonPinResult:
     """
     Pin the current project to use a specific Python version.
 
@@ -259,11 +268,11 @@ async def pin_python_version(version: str) -> PythonPinResult:
     Returns:
         PythonPinResult with success status.
     """
-    return await pin_python_version_action(version)
+    return await pin_python_version_action(version, project_path)
 
 
 @mcp.tool()
-async def list_dependencies(
+async def uv_list_dependencies(
     project_path: str | None = None, tree: bool = False
 ) -> DependencyListResult:
     """
@@ -280,7 +289,7 @@ async def list_dependencies(
 
 
 @mcp.tool()
-async def show_package_info(
+async def uv_show_package_info(
     package_name: str, project_path: str | None = None
 ) -> PackageInfoResult:
     """
@@ -297,7 +306,7 @@ async def show_package_info(
 
 
 @mcp.tool()
-async def check_outdated_packages(
+async def uv_check_outdated_packages(
     project_path: str | None = None,
 ) -> OutdatedCheckResult:
     """
@@ -313,7 +322,7 @@ async def check_outdated_packages(
 
 
 @mcp.tool()
-async def analyze_dependency_tree(
+async def uv_analyze_dependency_tree(
     project_path: str | None = None,
 ) -> TreeAnalysisResult:
     """
@@ -326,6 +335,123 @@ async def analyze_dependency_tree(
         TreeAnalysisResult with the tree output and metrics.
     """
     return await analyze_dependency_tree_action(project_path)
+
+
+@mcp.tool()
+async def uv_clear_cache(package: str | None = None) -> CacheOperationResult:
+    """
+    Clear the uv cache.
+
+    This can help resolve issues with corrupted packages or free up disk space.
+    If a package name is provided, only that package's cache will be cleared.
+    Otherwise, the entire cache is cleared.
+
+    Args:
+        package: Optional specific package name to clear from cache
+
+    Returns:
+        CacheOperationResult with operation status
+    """
+    return await clear_cache_action(package)
+
+
+@mcp.tool()
+async def uv_lock_project(project_path: str | None = None) -> SyncResult:
+    """
+    Create or update the uv.lock file without installing dependencies.
+
+    This is useful to update the lockfile after manually editing pyproject.toml
+    without syncing the environment.
+
+    Args:
+        project_path: Path to the project directory (defaults to current directory)
+
+    Returns:
+        SyncResult with operation status
+    """
+    from pathlib import Path
+    from .utils import run_uv_command, find_uv_project_root
+
+    project_dir = Path(project_path) if project_path else Path.cwd()
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    logger.info(f"Locking project in {project_dir}")
+    success, stdout, stderr = await run_uv_command(["lock"], cwd=project_dir)
+
+    return SyncResult(
+        project_dir=str(project_dir),
+        success=success,
+        message=(
+            "Lockfile updated successfully" if success else "Failed to update lockfile"
+        ),
+        output=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_build_project(
+    project_path: str | None = None,
+    wheel: bool = True,
+    sdist: bool = True,
+    output_dir: str | None = None,
+) -> dict:
+    """
+    Build the project into distributable packages.
+
+    Creates wheel and/or source distribution files that can be uploaded to PyPI
+    or installed elsewhere.
+
+    Args:
+        project_path: Path to the project directory (defaults to current directory)
+        wheel: Build a wheel package (default: True)
+        sdist: Build a source distribution (default: True)
+        output_dir: Output directory for built packages (default: dist/)
+
+    Returns:
+        Dict with build results including artifacts created
+    """
+    from pathlib import Path
+    from .utils import run_uv_command, find_uv_project_root
+
+    project_dir = Path(project_path) if project_path else Path.cwd()
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    cmd = ["build"]
+
+    # Add format flags
+    if wheel and not sdist:
+        cmd.append("--wheel")
+    elif sdist and not wheel:
+        cmd.append("--sdist")
+    # If both are True (default), build both formats
+
+    if output_dir:
+        cmd.extend(["--out-dir", output_dir])
+
+    logger.info(f"Building project in {project_dir}")
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    # Parse output to find artifacts
+    artifacts = []
+    if success:
+        dist_dir = Path(output_dir) if output_dir else project_dir / "dist"
+        if dist_dir.exists():
+            artifacts = [str(f.name) for f in dist_dir.iterdir() if f.is_file()]
+
+    return {
+        "project_dir": str(project_dir),
+        "output_dir": str(output_dir) if output_dir else str(project_dir / "dist"),
+        "success": success,
+        "artifacts": artifacts,
+        "message": "Build completed successfully" if success else "Build failed",
+        "output": stdout if success else None,
+        "error": stderr if not success else None,
+    }
 
 
 def main():
