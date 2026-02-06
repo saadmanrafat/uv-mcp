@@ -176,7 +176,7 @@ Sets the project's Python version.
     -   `project_path` (optional): Path to project root.
 -   **Returns**: Success status with PythonPinResult.
 
-## Build & Distribution (v0.6.4+)
+## Build & Distribution (v0.7.2+)
 
 New tools for building and distributing Python packages.
 
@@ -240,7 +240,7 @@ Clears the UV package cache to resolve corrupted packages or free disk space.
     await clear_cache(package="requests")
     ```
 
-## Error Handling (v0.6.4+)
+## Error Handling (v0.7.2+)
 
 Enhanced error reporting with actionable suggestions.
 

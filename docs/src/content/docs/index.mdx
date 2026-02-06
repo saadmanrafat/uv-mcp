@@ -41,11 +41,11 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	</Card>
 </CardGrid>
 
-## What's New in v0.6.4
+## What's New in v0.7.2
 
-- **Cache Management**: Clear UV package cache to resolve corrupted packages or free disk space
-- **Lock Management**: Update lockfiles without syncing the entire environment
-- **Build Tools**: Create distributable wheel and source packages for PyPI
-- **Enhanced Errors**: Get actionable suggestions with every error message
-- **56 New Tests**: Comprehensive edge case testing for robustness
-- **100% Backward Compatible**: All existing tools work unchanged
+- **Configuration Centralization**: New `config.py` for timeouts, limits, and retry policies
+- **Concurrency Control**: Prevents resource exhaustion with `MAX_CONCURRENT_COMMANDS`
+- **Output Management**: Intelligent truncation for large dependency trees and logs
+- **Core Robustness**: Fixed zombie processes and improved validation logic
+- **Enhanced Docs**: Comprehensive docstrings and examples for all actions
+- **Bug Fixes**: 19+ fixes from code review including critical stability improvements

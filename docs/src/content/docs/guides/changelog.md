@@ -5,6 +5,26 @@ description: Release history and version updates for UV-MCP.
 
 # Changelog
 
+## [0.7.2] - 2026-02-07
+
+### Added
+- **Configuration Module**: Centralized `config.py` for timeouts, limits, and retry policies.
+- **Concurrency Limits**: `MAX_CONCURRENT_COMMANDS` prevents resource exhaustion.
+- **Core Utilities**: Improved `validate_project_path` and `check_uv_available` (zombie process fix).
+- **Output Limits**: Truncation for large dependency trees and sync outputs to avoid MCP payload limits.
+- **Docstrings**: Added comprehensive docstrings with examples to all actions.
+- **Tests**: New `test_error_paths.py` covering edge cases and missing files.
+
+### Fixed
+- **Resource Leaks**: Fixed zombie processes in `check_uv_available`.
+- **Timeouts**: Fixed cascading timeouts in `run_uv_command`.
+- **Bug Fixes**:
+    - Fixed `KeyError` in `show_package_info`.
+    - Fixed list slicing in `list_dependencies`.
+    - Fixed logic in `check_dependencies` regarding return codes.
+    - Fixed validation in `check_outdated_packages`.
+- **Safety**: Added rigorous project path validation across all tools.
+
 ## [0.6.4] - 2025-12-28
 
 ### Major Release

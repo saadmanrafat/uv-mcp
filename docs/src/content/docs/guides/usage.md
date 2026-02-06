@@ -110,7 +110,7 @@ Control the Python interpreters used by your project.
 -   `init_project`: Scaffolds a new project with `pyproject.toml`.
 -   `export_requirements`: Generates a standard `requirements.txt` file for compatibility.
 
-## Build & Distribution (v0.6.4+)
+## Build & Distribution (v0.7.2+)
 
 New workflows for packaging and distributing your Python projects.
 
@@ -187,7 +187,7 @@ New workflows for packaging and distributing your Python projects.
 > "Sync the environment"
 ```
 
-## Error Handling & Troubleshooting (v0.6.4+)
+## Error Handling & Troubleshooting (v0.7.2+)
 
 ### Understanding Error Messages
 
