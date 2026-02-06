@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.0] - 2026-02-07
+## [0.7.1] - 2026-02-07
 
 ### Added
 - **Configuration Module**: Centralized `config.py` for timeouts, limits, and retry policies.
