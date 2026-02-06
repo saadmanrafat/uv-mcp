@@ -18,6 +18,7 @@ from .utils import (
     find_uv_project_root,
     get_project_info,
     run_uv_command,
+    validate_project_path,
 )
 
 
@@ -92,29 +93,46 @@ async def check_dependencies(project_dir: Path | None = None) -> DependencyCheck
     success, stdout, stderr = await run_uv_command(["pip", "check"], cwd=project_dir)
 
     if not success:
-        # If command failed, check if it's because of broken requirements (exit code 1)
-        # or some other error. uv pip check prints issues to stdout/stderr.
-        if (
-            "No broken requirements found" not in stdout
-            and "No broken requirements found" not in stderr
-        ):
+        # Issue #5: Logic was previously inverted or confused.
+        # uv pip check returns non-zero exit code if conflicts are found.
+        # However, it might also fail due to other reasons.
+        
+        # If "No broken requirements found" is in output, it means check passed but maybe exit code
+        # is non-zero for another reason (unlikely for 'pip check' but possible).
+        # Actually, if check passes, exit code is 0.
+        
+        # If exit code != 0, it means either broken requirements OR error.
+        if "No broken requirements found" in stdout or "No broken requirements found" in stderr:
+             # This theoretically shouldn't happen with non-zero exit code unless uv changed behavior
+             pass
+        else:
             healthy = False
-            # Determine if it's a "broken requirements" issue or "tool failed" issue
-            # Usually broken requirements will have details in stdout/stderr
-            if stdout.strip() or stderr.strip():
-                issues.append(
-                    f"Dependency conflicts detected: {stdout.strip() or stderr.strip()}"
-                )
+            # Try to extract the issue description
+            if stdout.strip():
+                 issues.append(f"Dependency conflicts detected: {stdout.strip()}")
+            elif stderr.strip():
+                 # Could be a genuine error running the command
+                 issues.append(f"Failed to check dependencies: {stderr.strip()}")
             else:
-                issues.append(f"Failed to check dependencies: {stderr}")
+                 issues.append("Dependency check failed (unknown reason)")
+    else:
+        # Success (exit code 0) means no broken requirements found
+        pass
+
 
     # Check if dependencies are installed
     if info["has_pyproject"]:
         success, stdout, stderr = await run_uv_command(["pip", "list"], cwd=project_dir)
         if success:
             lines = stdout.strip().split("\n")
-            installed_count = max(0, len(lines) - 2)  # Prevent negative counts
-            installed_packages = installed_count
+            # header is usually 2 lines (header + separator), or just valid packages
+            # uv pip list format: Package Version ...
+            # We count non-empty lines, subtracting header if present
+            count = 0
+            for line in lines:
+                if line.strip() and not line.startswith("Package") and not line.startswith("---"):
+                    count += 1
+            installed_packages = count
         else:
             warnings.append("Could not list installed packages")
 
@@ -158,9 +176,12 @@ async def check_python_version(project_dir: Path | None = None) -> PythonCheck:
 
     if success:
         # Output is like "Python 3.12.0"
-        version_str = stdout.strip().split()[-1]
-        current_version = version_str
-        source = "virtual_env"
+        try:
+             version_str = stdout.strip().split()[-1]
+             current_version = version_str
+             source = "virtual_env"
+        except IndexError:
+             warnings.append("Could not parse python version output")
     else:
         # Fallback to system python check if uv run fails (e.g. no venv yet)
         # But report that we are falling back
@@ -177,12 +198,15 @@ async def check_python_version(project_dir: Path | None = None) -> PythonCheck:
         # specific version check logic could be improved with 'packaging' library
         # but for now we do string matching if exact version is required
         if "==" in required:
-            exact_version = required.split("==")[1].strip()
-            if current_version != "unknown" and exact_version not in current_version:
-                compatible = False
-                issues.append(
-                    f"Python version mismatch: need {exact_version}, have {current_version}"
-                )
+            try:
+                exact_version = required.split("==")[1].strip()
+                if current_version != "unknown" and exact_version not in current_version:
+                    compatible = False
+                    issues.append(
+                        f"Python version mismatch: need {exact_version}, have {current_version}"
+                    )
+            except IndexError:
+                pass 
         elif ">=" in required:
             # Just a warning for now as we don't fully parse semver here
             pass
@@ -226,8 +250,20 @@ async def generate_diagnostic_report(
     Returns:
         DiagnosticReport
     """
+    # Use validate_project_path to normalize but handle exception gracefully since 
+    # we want to return a report even if directory is invalid (containing error info)
     if project_dir is None:
         project_dir = Path.cwd()
+    else:
+        project_dir = Path(project_dir)
+
+    if not project_dir.exists():
+         return DiagnosticReport(
+            project_dir=str(project_dir),
+            overall_health="critical",
+            uv=UVInfo(installed=False, version="unknown"), 
+            critical_issues=[f"Project directory does not exist: {project_dir}"],
+        )
 
     # Find project root
     root = find_uv_project_root(project_dir)
@@ -235,7 +271,6 @@ async def generate_diagnostic_report(
         project_dir = root
 
     overall_health = "healthy"
-    # Removed unused critical_issues list
 
     # Check uv installation
     uv_available, uv_version = await check_uv_available()

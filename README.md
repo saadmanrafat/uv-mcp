@@ -1,7 +1,7 @@
 # uv-mcp 
 
 [![geminicli.com: featured extension](https://img.shields.io/badge/geminicli.com-featured%20extension-5F55AF?style=for-the-badge&logoColor=white)](https://geminicli.com/extensions)
-![Python](https://img.shields.io/badge/Python-3.10%2B-FFE873?style=for-the-badge&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11%2B-FFE873?style=for-the-badge&logo=python&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-Powered-4285F4?style=for-the-badge&logo=google&logoColor=white)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](LICENSE)
 

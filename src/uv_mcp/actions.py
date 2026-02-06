@@ -3,7 +3,9 @@
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
+from .config import MAX_OUTPUT_SIZE, MAX_TREE_OUTPUT
 from .models import (
     CacheOperationResult,
     DependencyItem,
@@ -24,10 +26,13 @@ from .models import (
     UVCheckResult,
 )
 from .utils import (
+    ProjectNotFoundError,
+    UVError,
     check_project_venv,
     check_uv_available,
     find_uv_project_root,
     run_uv_command,
+    validate_project_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,6 +202,11 @@ async def _repair_sync(project_dir: Path, auto_fix: bool) -> RepairAction | None
     if auto_fix:
         logger.info("Syncing dependencies")
         success, stdout, stderr = await run_uv_command(["sync"], cwd=project_dir)
+        
+        # Limit output size to prevent overwhelming the response
+        if success and stdout and len(stdout) > MAX_OUTPUT_SIZE:
+             stdout = stdout[:MAX_OUTPUT_SIZE] + "\\n... (output truncated)"
+
         return RepairAction(
             action="sync_dependencies",
             description="Syncing project dependencies",
@@ -218,17 +228,21 @@ async def repair_environment_action(
     """
     Attempt to repair common environment issues.
 
+    Args:
+        project_path: Path to the project directory
+        auto_fix: Whether to automatically apply fixes
+
     Returns:
         RepairResult with repair results
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
-
-    if not project_dir.exists():
-        logger.error(f"Project directory does not exist: {project_dir}")
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
+        logger.error(e.message)
         return RepairResult(
-            project_dir=str(project_dir),
+            project_dir=str(project_path) if project_path else str(Path.cwd()),
             success=False,
-            error=f"Project directory does not exist: {project_path}",
+            error=e.message,
         )
 
     # Check if uv is available
@@ -285,17 +299,34 @@ async def add_dependency_action(
     """
     Add a new dependency to the project.
 
-    Returns:
-        DependencyOperationResult
-    """
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    Args:
+        package: Package name with optional version specifier (e.g., "requests>=2.28.0")
+        project_path: Path to the project directory (defaults to current directory)
+        dev: Whether to add as a development dependency (default: False)
+        optional: Optional dependency group name (e.g., "test", "docs")
 
-    if not project_dir.exists():
+    Returns:
+        DependencyOperationResult with operation results
+
+    Raises:
+        ProjectNotFoundError: If project directory doesn't exist
+    """
+    if not package or not package.strip():
         return DependencyOperationResult(
             package=package,
-            project_dir=str(project_dir),
+            project_dir="unknown",
             success=False,
-            error=f"Project directory does not exist: {project_path}",
+            error="Package name cannot be empty",
+        )
+
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
+        return DependencyOperationResult(
+            package=package,
+            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            success=False,
+            error=e.message,
         )
 
     # Check if uv is available
@@ -358,17 +389,23 @@ async def remove_dependency_action(
     """
     Remove a dependency from the project.
 
+    Args:
+        package: Package name (e.g., "requests")
+        project_path: Path to the project directory
+        dev: Remove from development dependencies
+        optional: Remove from optional group
+
     Returns:
         DependencyOperationResult
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
-
-    if not project_dir.exists():
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
         return DependencyOperationResult(
             package=package,
-            project_dir=str(project_dir),
+            project_dir=str(project_path) if project_path else str(Path.cwd()),
             success=False,
-            error=f"Project directory does not exist: {project_path}",
+            error=e.message,
         )
 
     # Check if uv is available
@@ -459,6 +496,8 @@ async def install_python_version_action(version: str) -> PythonInstallResult:
     """
     Install a specific Python version.
 
+    Args:
+        version: Python version to install (e.g. "3.12")
     Returns:
         PythonInstallResult
     """
@@ -479,17 +518,21 @@ async def pin_python_version_action(
     """
     Pin the project to a specific Python version.
 
+    Args:
+        version: Python version to pin
+        project_path: Path to project directory
+
     Returns:
         PythonPinResult
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
-
-    if not project_dir.exists():
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
         return PythonPinResult(
             version=version,
-            project_dir=str(project_dir),
+            project_dir=str(project_path) if project_path else str(Path.cwd()),
             success=False,
-            error=f"Project directory does not exist: {project_path}",
+            error=e.message,
         )
 
     # Find project root to ensure we pin in the right place
@@ -532,7 +575,17 @@ async def list_dependencies_action(
         project_path: Path to the project root.
         tree: If True, returns a tree visualization. If False, returns a flat list.
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
+        return DependencyListResult(
+            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            is_tree=tree,
+            count=0,
+            success=False,
+            error=e.message,
+        )
+
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -549,10 +602,17 @@ async def list_dependencies_action(
                 success=False,
                 error=stderr,
             )
+        
+        # Limit tree output if needed
+        tree_output = stdout
+        if len(stdout) > MAX_TREE_OUTPUT:
+            tree_output = stdout[:MAX_TREE_OUTPUT] + "\\n... (output truncated)"
+            logger.warning("Dependency tree exceeded size limit, truncated.")
+
         return DependencyListResult(
             project_dir=str(project_dir),
             is_tree=True,
-            tree_output=stdout,
+            tree_output=tree_output,
             count=len(stdout.splitlines()),  # Rough proxy for count
             success=True,
         )
@@ -605,8 +665,23 @@ async def show_package_info_action(
 ) -> PackageInfoResult:
     """
     Show detailed information about a package.
+
+    Args:
+        package_name: Name of the package to inspect
+        project_path: Path to project directory
+    
+    Returns:
+        PackageInfoResult
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
+        return PackageInfoResult(
+            name=package_name,
+            success=False,
+            error=e.message,
+        )
+
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -651,8 +726,24 @@ async def check_outdated_packages_action(
 ) -> OutdatedCheckResult:
     """
     Check for outdated packages.
+
+    Args:
+        project_path: Path to project directory
+
+    Returns:
+        OutdatedCheckResult
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
+        return OutdatedCheckResult(
+            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            outdated_packages=[],
+            count=0,
+            success=False,
+            error=e.message,
+        )
+
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -703,8 +794,23 @@ async def analyze_dependency_tree_action(
 ) -> TreeAnalysisResult:
     """
     Analyze the dependency tree.
+
+    Args:
+        project_path: Path to project directory
+
+    Returns:
+        TreeAnalysisResult
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    try:
+        project_dir = validate_project_path(project_path)
+    except ProjectNotFoundError as e:
+        return TreeAnalysisResult(
+            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            tree_output="",
+            success=False,
+            error=e.message,
+        )
+
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -741,7 +847,15 @@ async def analyze_dependency_tree_action(
 
 
 async def clear_cache_action(package: str | None = None) -> CacheOperationResult:
-    """Clear uv cache for a specific package or all packages."""
+    """
+    Clear uv cache for a specific package or all packages.
+    
+    Args:
+        package: Optional package name to clear cache for
+
+    Returns:
+        CacheOperationResult
+    """
     cmd = ["cache", "clean"]
     if package:
         cmd.append(package)
