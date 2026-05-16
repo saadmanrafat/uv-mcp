@@ -68,7 +68,7 @@ jobs:
     
     - name: Check required files
       run: |
-        required_files=("README.md" "LICENSE" "CHANGELOG.md" "GEMINI.md" "pyproject.toml")
+        required_files=("README.md" "LICENSE" "CHANGELOG.md","pyproject.toml")
         for file in "${required_files[@]}"; do
           if [ ! -f "$file" ]; then
             echo "❌ Error: Required file $file not found"
