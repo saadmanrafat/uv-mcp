@@ -2,7 +2,6 @@
   "name": "uv-mcp",
   "version": "0.8.0",
   "description": "Bridge modern, reproducible Python environments with Gemini CLI agents. Diagnose, self-heal, and manage uv workflows.",
-  "contextFileName": "claude.md",
   "icon": "ext/uv_mcp_logo.png",
   "keywords": [
     "python",
