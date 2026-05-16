@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """Test script to verify all UV-Agent MCP tools work correctly."""
 
-import json
 import sys
 import platform
 import asyncio
@@ -17,7 +16,7 @@ if sys.platform == 'win32':
 
 sys.path.insert(0, 'src')
 
-from uv_mcp.utils import check_uv_available, get_project_info
+from uv_mcp.utils import get_project_info
 from uv_mcp.diagnostics import generate_diagnostic_report
 from uv_mcp.actions import (
     repair_environment_action,

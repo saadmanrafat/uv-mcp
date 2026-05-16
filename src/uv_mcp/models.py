@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -263,4 +262,55 @@ class CacheOperationResult(BaseModel):
     space_freed: str | None = None  # "700 MB"
     message: str | None = None
     output: str | None = None
+    error: str | None = None
+
+
+class EphemeralToolResult(BaseModel):
+    """Result of running an ephemeral tool via uvx."""
+
+    package: str
+    command: list[str]
+    success: bool
+    stdout: str | None = None
+    stderr: str | None = None
+    return_code: int | None = None
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    error: str | None = None
+
+
+class WorkspaceMember(BaseModel):
+    """A single member of a uv workspace."""
+
+    name: str
+    path: str
+    dependencies: list[str] = []
+
+
+class WorkspaceManifest(BaseModel):
+    """Manifest describing a uv workspace tree."""
+
+    root: str
+    is_workspace: bool
+    members: list[WorkspaceMember] = []
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    error: str | None = None
+
+
+class HealingAction(BaseModel):
+    """A single self-healing action taken."""
+
+    action: str
+    status: str  # "success", "failed", "skipped"
+    output: str | None = None
+    error: str | None = None
+
+
+class SelfHealingDiagnostics(BaseModel):
+    """Result of self-healing environment diagnostics."""
+
+    success: bool
+    actions: list[HealingAction] = []
+    missing_packages: list[str] = []
+    recommendations: list[str] = []
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
     error: str | None = None

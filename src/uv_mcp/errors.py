@@ -1,6 +1,6 @@
 """Enhanced error handling with actionable suggestions."""
 
-from typing import Optional
+from typing import Any, Optional
 
 
 class UVMCPError(Exception):
@@ -17,9 +17,9 @@ class UVMCPError(Exception):
         self.error_code = error_code
         super().__init__(message)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert error to a dictionary for JSON serialization."""
-        result = {"error": self.message}
+        result: dict[str, Any] = {"error": self.message}
         if self.suggestion:
             result["suggestion"] = self.suggestion
         if self.error_code:
@@ -30,7 +30,7 @@ class UVMCPError(Exception):
 class UVNotInstalledError(UVMCPError):
     """Raised when uv is not installed."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             message="uv is not installed on this system",
             suggestion="Install uv using: curl -LsSf https://astral.sh/uv/install.sh | sh\nOr use the uv_install tool for platform-specific instructions",
@@ -44,7 +44,7 @@ class ProjectNotFoundError(UVMCPError):
     def __init__(self, path: str):
         super().__init__(
             message=f"Project directory does not exist: {path}",
-            suggestion=f"Check the path is correct or initialize a new project with uv_initialize_project",
+            suggestion="Check the path is correct or initialize a new project with uv_initialize_project",
             error_code="PROJECT_NOT_FOUND",
         )
 

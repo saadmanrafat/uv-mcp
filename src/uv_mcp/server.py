@@ -23,11 +23,15 @@ from .actions import (
 )
 from .diagnostics import generate_diagnostic_report
 from .models import (
+    BuildResult,
     CacheOperationResult,
     DependencyListResult,
     DependencyOperationResult,
     DiagnosticReport,
     DiagnosticReportSummary,
+    EphemeralToolResult,
+    ExportResult,
+    HealingAction,
     InstallInstructions,
     OutdatedCheckResult,
     PackageInfoResult,
@@ -36,9 +40,12 @@ from .models import (
     PythonListResult,
     PythonPinResult,
     RepairResult,
+    SelfHealingDiagnostics,
     SyncResult,
     TreeAnalysisResult,
     UVCheckResult,
+    WorkspaceManifest,
+    WorkspaceMember,
 )
 from .tools import ProjectTools
 
@@ -94,7 +101,7 @@ async def uv_diagnose_environment(project_path: str | None = None) -> Diagnostic
     Returns:
         DiagnosticReport with comprehensive diagnostic report
     """
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
 
     if not project_dir.exists():
         return DiagnosticReport(
@@ -222,7 +229,7 @@ async def uv_sync_environment(
 
 
 @mcp.tool()
-async def uv_export_requirements(output_file: str = "requirements.txt") -> SyncResult:
+async def uv_export_requirements(output_file: str = "requirements.txt") -> ExportResult:
     """Export the current locked dependencies to a requirements.txt file."""
     return await ProjectTools.export_requirements(output_file=output_file)
 
@@ -372,7 +379,7 @@ async def uv_lock_project(project_path: str | None = None) -> SyncResult:
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -397,7 +404,7 @@ async def uv_build_project(
     wheel: bool = True,
     sdist: bool = True,
     output_dir: str | None = None,
-) -> dict:
+) -> BuildResult:
     """
     Build the project into distributable packages.
 
@@ -411,12 +418,12 @@ async def uv_build_project(
         output_dir: Output directory for built packages (default: dist/)
 
     Returns:
-        Dict with build results including artifacts created
+        BuildResult with build results including artifacts created
     """
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path) if project_path else Path.cwd()
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -437,24 +444,264 @@ async def uv_build_project(
     success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
 
     # Parse output to find artifacts
-    artifacts = []
+    artifacts: list[str] = []
     if success:
         dist_dir = Path(output_dir) if output_dir else project_dir / "dist"
         if dist_dir.exists():
             artifacts = [str(f.name) for f in dist_dir.iterdir() if f.is_file()]
 
-    return {
-        "project_dir": str(project_dir),
-        "output_dir": str(output_dir) if output_dir else str(project_dir / "dist"),
-        "success": success,
-        "artifacts": artifacts,
-        "message": "Build completed successfully" if success else "Build failed",
-        "output": stdout if success else None,
-        "error": stderr if not success else None,
-    }
+    return BuildResult(
+        project_dir=str(project_dir),
+        output_dir=str(output_dir) if output_dir else str(project_dir / "dist"),
+        success=success,
+        artifacts=artifacts,
+        message="Build completed successfully" if success else "Build failed",
+        error=stderr if not success else None,
+    )
 
 
-def main():
+@mcp.tool()
+async def uv_run_ephemeral_tool(
+    package: str,
+    command: list[str],
+    project_path: str | None = None,
+) -> EphemeralToolResult:
+    """
+    Run an ephemeral tool via `uvx` without installing it permanently.
+
+    Args:
+        package: The package name to run (e.g., "ruff", "black", "mypy").
+        command: Arguments to pass to the tool.
+        project_path: Optional project directory to run in.
+
+    Returns:
+        EphemeralToolResult with stdout, stderr, and exit code.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command
+
+    cwd = Path(project_path).resolve() if project_path else None
+
+    args = ["tool", "run", "--from", package, *command]
+    success, stdout, stderr = await run_uv_command(args, cwd=cwd)
+
+    return EphemeralToolResult(
+        package=package,
+        command=command,
+        success=success,
+        stdout=stdout if stdout else None,
+        stderr=stderr if stderr else None,
+        return_code=0 if success else 1,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_get_workspace_manifest(
+    project_path: str | None = None,
+) -> WorkspaceManifest:
+    """
+    Introspect a workspace tree for monorepo / microservice configurations.
+
+    Args:
+        project_path: Path to the project root (defaults to cwd).
+
+    Returns:
+        WorkspaceManifest with members and dependency metadata.
+    """
+    from pathlib import Path
+    from .utils import find_uv_project_root
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    # Check if workspace config exists in pyproject.toml
+    workspace_members: list[str] = []
+    pyproject = project_dir / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib  # type: ignore
+
+        try:
+            with open(pyproject, "rb") as f:
+                data = tomllib.load(f)
+            tool_uv = data.get("tool", {}).get("uv", {})
+            workspace = tool_uv.get("workspace", {})
+            raw_members = workspace.get("members", [])
+            if isinstance(raw_members, list):
+                workspace_members = raw_members
+        except Exception:
+            pass
+
+    members: list[WorkspaceMember] = []
+
+    if workspace_members:
+        for pattern in workspace_members:
+            resolved = list(project_dir.glob(pattern))
+            for member_dir in resolved:
+                if member_dir.is_dir() and (member_dir / "pyproject.toml").exists():
+                    try:
+                        with open(member_dir / "pyproject.toml", "rb") as f:
+                            data = tomllib.load(f)
+                        name = data.get("project", {}).get("name", member_dir.name)
+                        deps = data.get("project", {}).get("dependencies", [])
+                        members.append(
+                            WorkspaceMember(
+                                name=name,
+                                path=str(member_dir.resolve()),
+                                dependencies=deps if isinstance(deps, list) else [],
+                            )
+                        )
+                    except Exception:
+                        members.append(
+                            WorkspaceMember(
+                                name=member_dir.name,
+                                path=str(member_dir.resolve()),
+                                dependencies=[],
+                            )
+                        )
+    else:
+        # No workspace declared: treat root as sole member
+        try:
+            with open(pyproject, "rb") as f:
+                data = tomllib.load(f)
+            name = data.get("project", {}).get("name", project_dir.name)
+            deps = data.get("project", {}).get("dependencies", [])
+            members.append(
+                WorkspaceMember(
+                    name=name,
+                    path=str(project_dir),
+                    dependencies=deps if isinstance(deps, list) else [],
+                )
+            )
+        except Exception:
+            members.append(
+                WorkspaceMember(
+                    name=project_dir.name,
+                    path=str(project_dir),
+                    dependencies=[],
+                )
+            )
+
+    return WorkspaceManifest(
+        root=str(project_dir),
+        is_workspace=bool(workspace_members),
+        members=members,
+    )
+
+
+@mcp.tool()
+async def uv_self_heal_environment(
+    project_path: str | None = None,
+) -> SelfHealingDiagnostics:
+    """
+    Self-healing environment diagnostics.
+
+    Captures ModuleNotFoundError or layout exceptions, extracts missing
+    package names via regex, and returns a structured remedy payload.
+
+    Args:
+        project_path: Path to the project directory (defaults to current directory).
+
+    Returns:
+        SelfHealingDiagnostics with detected issues and recommended actions.
+    """
+    import re
+    from .utils import run_uv_command, validate_project_path, find_uv_project_root
+
+    try:
+        project_dir = validate_project_path(project_path)
+    except Exception as e:
+        return SelfHealingDiagnostics(
+            success=False,
+            error=str(e),
+        )
+
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    actions: list[HealingAction] = []
+    missing_packages: list[str] = []
+    recommendations: list[str] = []
+
+    # Attempt a lightweight check: uv pip check
+    success, stdout, stderr = await run_uv_command(
+        ["pip", "check"], cwd=project_dir
+    )
+
+    if not success:
+        # Extract missing packages from stderr
+        pattern = re.compile(
+            r"No module named ['\"]?(\w+)['\"]?",
+            re.IGNORECASE,
+        )
+        found = pattern.findall(stderr)
+        missing_packages.extend(found)
+
+        # Also try generic package name extraction (e.g., "requires <package>")
+        req_pattern = re.compile(
+            r"requires\s+(\w+)[,;\s]",
+            re.IGNORECASE,
+        )
+        missing_packages.extend(req_pattern.findall(stderr))
+
+        actions.append(
+            HealingAction(
+                action="pip_check",
+                status="failed",
+                error=stderr,
+            )
+        )
+    else:
+        actions.append(
+            HealingAction(
+                action="pip_check",
+                status="success",
+                output=stdout,
+            )
+        )
+
+    # Attempt sync to heal missing packages
+    if missing_packages:
+        unique_packages = list(set(missing_packages))
+        for pkg in unique_packages:
+            recommendations.append(
+                f"Package '{pkg}' is missing. Suggested fix: uv add {pkg}"
+            )
+        sync_success, sync_out, sync_err = await run_uv_command(
+            ["sync"], cwd=project_dir
+        )
+        actions.append(
+            HealingAction(
+                action="sync",
+                status="success" if sync_success else "failed",
+                output=sync_out if sync_success else None,
+                error=sync_err if not sync_success else None,
+            )
+        )
+        if sync_success:
+            recommendations.append("Environment synced successfully.")
+        else:
+            recommendations.append(
+                "Sync failed. Consider running uv_repair_environment(auto_fix=True)."
+            )
+    else:
+        recommendations.append("No missing packages detected. Environment appears healthy.")
+
+    return SelfHealingDiagnostics(
+        success=all(a.status == "success" for a in actions),
+        actions=actions,
+        missing_packages=list(set(missing_packages)),
+        recommendations=recommendations,
+    )
+
+
+def main() -> None:
     """Run the MCP server."""
     mcp.run()
 

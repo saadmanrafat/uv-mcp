@@ -1,6 +1,6 @@
 [project]
 name = "uv-mcp"
-version = "0.7.2"
+version = "0.8.0"
 description = "Bridge modern, reproducible Python environments with MCP agents. Diagnose, self-heal, and manage uv workflows"
 authors = [{ name = "Saadman Rafat", email = "saadman@outlook.com" }]
 readme = "README.md"
@@ -26,4 +26,5 @@ dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
+    "ruff>=0.15.13",
 ]

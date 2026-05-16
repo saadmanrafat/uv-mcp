@@ -18,7 +18,6 @@ from .utils import (
     find_uv_project_root,
     get_project_info,
     run_uv_command,
-    validate_project_path,
 )
 
 
@@ -33,7 +32,9 @@ def check_project_structure(project_dir: Path | None = None) -> StructureCheck:
         StructureCheck with structure validation results
     """
     if project_dir is None:
-        project_dir = Path.cwd()
+        project_dir = Path.cwd().resolve()
+    else:
+        project_dir = project_dir.resolve()
 
     valid = True
     issues = []
@@ -74,7 +75,9 @@ async def check_dependencies(project_dir: Path | None = None) -> DependencyCheck
         DependencyCheck with dependency analysis results
     """
     if project_dir is None:
-        project_dir = Path.cwd()
+        project_dir = Path.cwd().resolve()
+    else:
+        project_dir = project_dir.resolve()
 
     healthy = True
     issues = []
@@ -156,7 +159,9 @@ async def check_python_version(project_dir: Path | None = None) -> PythonCheck:
     """
 
     if project_dir is None:
-        project_dir = Path.cwd()
+        project_dir = Path.cwd().resolve()
+    else:
+        project_dir = project_dir.resolve()
 
     compatible = True
     current_version = "unknown"
@@ -253,9 +258,9 @@ async def generate_diagnostic_report(
     # Use validate_project_path to normalize but handle exception gracefully since 
     # we want to return a report even if directory is invalid (containing error info)
     if project_dir is None:
-        project_dir = Path.cwd()
+        project_dir = Path.cwd().resolve()
     else:
-        project_dir = Path(project_dir)
+        project_dir = Path(project_dir).resolve()
 
     if not project_dir.exists():
          return DiagnosticReport(

@@ -1,6 +1,5 @@
 
 import pytest
-from pathlib import Path
 from uv_mcp.actions import (
     add_dependency_action,
     repair_environment_action,

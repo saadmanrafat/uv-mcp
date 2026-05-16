@@ -3,7 +3,6 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 from .config import MAX_OUTPUT_SIZE, MAX_TREE_OUTPUT
 from .models import (
@@ -27,7 +26,6 @@ from .models import (
 )
 from .utils import (
     ProjectNotFoundError,
-    UVError,
     check_project_venv,
     check_uv_available,
     find_uv_project_root,
@@ -240,7 +238,7 @@ async def repair_environment_action(
     except ProjectNotFoundError as e:
         logger.error(e.message)
         return RepairResult(
-            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            project_dir=str(project_path) if project_path else str(Path.cwd().resolve()),
             success=False,
             error=e.message,
         )
@@ -324,7 +322,7 @@ async def add_dependency_action(
     except ProjectNotFoundError as e:
         return DependencyOperationResult(
             package=package,
-            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            project_dir=str(project_path) if project_path else str(Path.cwd().resolve()),
             success=False,
             error=e.message,
         )
@@ -403,7 +401,7 @@ async def remove_dependency_action(
     except ProjectNotFoundError as e:
         return DependencyOperationResult(
             package=package,
-            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            project_dir=str(project_path) if project_path else str(Path.cwd().resolve()),
             success=False,
             error=e.message,
         )
@@ -530,7 +528,7 @@ async def pin_python_version_action(
     except ProjectNotFoundError as e:
         return PythonPinResult(
             version=version,
-            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            project_dir=str(project_path) if project_path else str(Path.cwd().resolve()),
             success=False,
             error=e.message,
         )
@@ -579,7 +577,7 @@ async def list_dependencies_action(
         project_dir = validate_project_path(project_path)
     except ProjectNotFoundError as e:
         return DependencyListResult(
-            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            project_dir=str(project_path) if project_path else str(Path.cwd().resolve()),
             is_tree=tree,
             count=0,
             success=False,
@@ -737,7 +735,7 @@ async def check_outdated_packages_action(
         project_dir = validate_project_path(project_path)
     except ProjectNotFoundError as e:
         return OutdatedCheckResult(
-            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            project_dir=str(project_path) if project_path else str(Path.cwd().resolve()),
             outdated_packages=[],
             count=0,
             success=False,
@@ -805,7 +803,7 @@ async def analyze_dependency_tree_action(
         project_dir = validate_project_path(project_path)
     except ProjectNotFoundError as e:
         return TreeAnalysisResult(
-            project_dir=str(project_path) if project_path else str(Path.cwd()),
+            project_dir=str(project_path) if project_path else str(Path.cwd().resolve()),
             tree_output="",
             success=False,
             error=e.message,

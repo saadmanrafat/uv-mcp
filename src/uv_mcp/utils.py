@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,28 @@ from .config import (
 
 # Configure logger
 logger = logging.getLogger(__name__)
+
+# Environment variables to suppress ANSI/control sequences in uv output
+_UV_NO_COLOR_ENV: dict[str, str] = {"UV_COLOR": "never", "TERM": "dumb"}
+
+# Commands that mutate project state and require exclusive access to uv.lock
+_UV_WRITE_COMMANDS = {"add", "remove", "sync", "lock"}
+
+# Global lock for write operations
+_UV_WRITE_LOCK = asyncio.Lock()
+
+
+class _NoOpLock:
+    """Async context manager that does nothing — avoids creating throwaway Locks."""
+
+    async def __aenter__(self) -> "_NoOpLock":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
+_NO_OP_LOCK = _NoOpLock()
 
 
 class UVError(Exception):
@@ -65,6 +88,15 @@ class UVTimeoutError(UVError):
         )
 
 
+def _get_uv_env(env: dict[str, str] | None = None) -> dict[str, str]:
+    """Merge caller-provided env with ANSI-suppressing defaults."""
+    merged = os.environ.copy()
+    merged.update(_UV_NO_COLOR_ENV)
+    if env:
+        merged.update(env)
+    return merged
+
+
 async def check_uv_available() -> tuple[bool, str | None]:
     """
     Check if uv is installed and available.
@@ -85,6 +117,7 @@ async def check_uv_available() -> tuple[bool, str | None]:
             "--version",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=_get_uv_env(),
         )
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
             process.communicate(), timeout=DEFAULT_CHECK_TIMEOUT
@@ -110,9 +143,9 @@ async def check_uv_available() -> tuple[bool, str | None]:
                 if process.returncode is None:
                     process.kill()
                     # no await process.wait() here to avoid potential hanging if something is wrong,
-                    # but typically kill() + OS cleanup is enough for zombification protection 
-                    # in this specific check context. 
-                    # For strictness, we can attempt wait() with timeout if needed, 
+                    # but typically kill() + OS cleanup is enough for zombification protection
+                    # in this specific check context.
+                    # For strictness, we can attempt wait() with timeout if needed,
                     # but just kill is usually sufficient for simple checks.
             except (ProcessLookupError, OSError):
                 pass
@@ -140,7 +173,15 @@ async def run_uv_command(
     Returns:
         Tuple of (success, stdout, stderr)
     """
-    async with _COMMAND_SEMAPHORE:
+    # Normalize working directory to absolute path
+    if cwd is not None:
+        cwd = cwd.resolve()
+
+    # Determine if this is a mutating command that needs exclusive lock access
+    needs_lock = bool(args and args[0] in _UV_WRITE_COMMANDS)
+    lock_context = _UV_WRITE_LOCK if needs_lock else _NO_OP_LOCK
+
+    async with lock_context:
         process = None
         try:
             logger.debug(f"Running uv command: uv {' '.join(args)} in {cwd or 'cwd'}")
@@ -150,7 +191,7 @@ async def run_uv_command(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
-                env=env,
+                env=_get_uv_env(env),
             )
 
             stdout_bytes, stderr_bytes = await asyncio.wait_for(
@@ -200,7 +241,9 @@ def get_project_info(project_dir: Path | None = None) -> dict[str, Any]:
         Dictionary with project information
     """
     if project_dir is None:
-        project_dir = Path.cwd()
+        project_dir = Path.cwd().resolve()
+    else:
+        project_dir = project_dir.resolve()
 
     pyproject_path = project_dir / "pyproject.toml"
 
@@ -288,18 +331,18 @@ def find_uv_project_root(start_dir: Path | None = None) -> Path | None:
 
 def validate_project_path(path: str | None) -> Path:
     """
-    Validate project path and return Path object.
+    Validate project path and return an absolute, resolved Path object.
 
     Args:
         path: Path string or None
 
     Returns:
-        Path object pointing to project directory
+        Absolute Path object pointing to project directory
 
     Raises:
         ProjectNotFoundError: If directory does not exist
     """
-    project_dir = Path(path) if path else Path.cwd()
+    project_dir = Path(path).resolve() if path else Path.cwd().resolve()
     if not project_dir.exists():
         raise ProjectNotFoundError(f"Project directory does not exist: {path}")
     return project_dir

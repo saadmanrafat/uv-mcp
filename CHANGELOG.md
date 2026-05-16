@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.8.0] - 2026-05-16
+
+### Added
+- **Ephemeral Tool Runner**: New `uv_run_ephemeral_tool` MCP tool executing commands via `uv tool run` (`uvx` proxy)
+  - Package name + command arguments -> stdout/stderr with typed `EphemeralToolResult`
+- **Workspace Introspection**: New `uv_get_workspace_manifest` MCP tool for monorepo / microservice configurations
+  - Parses `tool.uv.workspace.members` from `pyproject.toml`
+  - Returns `WorkspaceManifest` with root, members, and dependencies
+- **Self-Healing Diagnostics**: New `uv_self_heal_environment` wrapper tool
+  - Captures `ModuleNotFoundError` and layout exceptions via regex
+  - Automatically triggers `uv sync` and returns `SelfHealingDiagnostics` remedy payload
+- **ANSI-Free Output**: Subprocess environment now injects `UV_COLOR=never` and `TERM=dumb` unconditionally
+- **Concurrency Lockfile Protection**: `asyncio.Lock()` serializes mutating uv commands (`add`, `remove`, `sync`, `lock`) to prevent `uv.lock` deadlocks
+- **Absolute Path Resolution**: All tool schemas now enforce `.resolve()` on user-provided `project_path`, eliminating relative path drift
+- **New Models**: `EphemeralToolResult`, `WorkspaceManifest`, `WorkspaceMember`, `SelfHealingDiagnostics`, `HealingAction`
+
+### Fixed
+- **Docker Health Check**: Updated async invocation to match renamed `utils` module (was `uv_utils`)
+- **Type Safety**: Docker label version bump to 0.8.0; `mypy --strict` now passes on entire `src/uv_mcp`
+
+### Changed
+- `ProjectTools` refactored to return strict Pydantic models (`ProjectInitResult`, `SyncResult`, `ExportResult`) instead of raw strings
+- `pyproject.toml` and `__init__.py` synchronized to `0.8.0`
+
 ## [0.7.2] - 2026-02-07
 
 ### Added
@@ -163,7 +187,9 @@
 - 86 dependencies installed and tested
 - All tests passing
 
-[Unreleased]: https://github.com/saadmanrafat/uv-mcp/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/saadmanrafat/uv-mcp/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/saadmanrafat/uv-mcp/compare/v0.7.2...v0.8.0
+[0.7.2]: https://github.com/saadmanrafat/uv-mcp/compare/v0.6.4...v0.7.2
 [0.6.4]: https://github.com/saadmanrafat/uv-mcp/compare/v0.6.1...v0.6.4
 [0.6.1]: https://github.com/saadmanrafat/uv-mcp/compare/v0.5.3...v0.6.1
 [0.5.3]: https://github.com/saadmanrafat/uv-mcp/compare/v0.5.2...v0.5.3

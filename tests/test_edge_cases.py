@@ -6,7 +6,7 @@ that aren't covered by the main test suites.
 
 import pytest
 from pathlib import Path
-from unittest.mock import patch, AsyncMock, MagicMock, mock_open
+from unittest.mock import patch, AsyncMock
 import sys
 import asyncio
 
@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from uv_mcp.utils import (
     run_uv_command,
-    check_uv_available,
     get_project_info,
     check_project_venv,
     find_uv_project_root,
@@ -30,17 +29,12 @@ from uv_mcp.actions import (
     pin_python_version_action,
 )
 from uv_mcp.diagnostics import (
-    check_project_structure,
-    check_dependencies,
-    check_python_version,
     generate_diagnostic_report,
 )
 from uv_mcp.errors import (
-    UVMCPError,
     get_error_suggestion,
 )
 from uv_mcp.models import (
-    CacheOperationResult,
     DependencyOperationResult,
     RepairResult,
 )

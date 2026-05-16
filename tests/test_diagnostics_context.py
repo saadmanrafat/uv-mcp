@@ -1,8 +1,7 @@
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch
 from pathlib import Path
 import sys
-import asyncio
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

@@ -27,7 +27,7 @@ FROM python:3.11-slim as runtime
 # Labels
 LABEL org.opencontainers.image.title="UV-MCP"
 LABEL org.opencontainers.image.description="MCP server for uv - environment diagnostics, repair, and dependency management"
-LABEL org.opencontainers.image.version="0.5.0"
+LABEL org.opencontainers.image.version="0.8.0"
 LABEL org.opencontainers.image.source="https://github.com/saadmanrafat/uv-mcp"
 LABEL org.opencontainers.image.licenses="MIT"
 
@@ -60,7 +60,7 @@ USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "from uv_mcp.uv_utils import check_uv_available; assert check_uv_available()[0]" || exit 1
+    CMD python -c "import asyncio; from uv_mcp.utils import check_uv_available; result = asyncio.run(check_uv_available()); assert result[0]" || exit 1
 
 # Default command - run the MCP server
 CMD ["python", "-m", "uv_mcp.server"]

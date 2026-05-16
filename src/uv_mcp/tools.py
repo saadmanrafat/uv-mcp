@@ -1,8 +1,7 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
-from .models import ProjectInitResult, SyncResult
+from .models import ProjectInitResult, SyncResult, ExportResult
 from .utils import run_uv_command
 
 logger = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ class ProjectTools:
         python_version: str = "3.12",
         path: str | None = None,
         template: str = "app",
-    ) -> ProjectInitResult | str:
+    ) -> ProjectInitResult:
         """
         Initialize a new Python Project with uv
 
@@ -28,47 +27,66 @@ class ProjectTools:
             template: Project type ('app' for application, 'lib' for library).
 
         Returns:
-            A message describing the result of the operation.
+            ProjectInitResult describing the result of the operation.
         """
-        try:
-            base_path: Path = Path(path) if path else Path.cwd()
-            project_dir = base_path / name
+        base_path: Path = Path(path).resolve() if path else Path.cwd().resolve()
+        project_dir = base_path / name
 
-            logger.info(
-                f"Initializing project '{name}' in {base_path} with Python {python_version}"
+        logger.info(
+            f"Initializing project '{name}' in {base_path} with Python {python_version}"
+        )
+
+        init_args: list[str] = ["init", "--name", name, "--python", python_version]
+        if template == "app":
+            init_args.append("--app")
+        else:
+            init_args.append("--lib")
+
+        success, stdout, stderr = await run_uv_command(init_args, cwd=base_path)
+        if not success:
+            logger.error(f"Failed to initialize project: {stderr}")
+            return ProjectInitResult(
+                project_name=name,
+                project_dir=str(project_dir),
+                python_version=python_version,
+                template=template,
+                success=False,
+                error=f"Failed to initialize project: {stderr}",
             )
 
-            init_args: list[str] = ["init", "--name", name, "--python", python_version]
-            if template == "app":
-                init_args.append("--app")
-            else:
-                init_args.append("--lib")
+        logger.info("Pinning python version")
+        pin_success, pin_stdout, pin_stderr = await run_uv_command(
+            ["python", "pin", python_version], cwd=project_dir
+        )
 
-            success, stdout, stderr = await run_uv_command(init_args, cwd=base_path)
-            if not success:
-                logger.error(f"Failed to initialize project: {stderr}")
-                return f"Failed to initialize project: {stderr}"
+        if not pin_success:
+            logger.warning(
+                f"Project initialized but failed to pin python version: {pin_stderr}"
+            )
+            return ProjectInitResult(
+                project_name=name,
+                project_dir=str(project_dir),
+                python_version=python_version,
+                template=template,
+                success=False,
+                error=f"Project initialized but failed to pin python version: {pin_stderr}",
+            )
 
-            logger.info("Pinning python version")
-            success, stdout, stderr = await run_uv_command(
-                ["python", "pin", python_version], cwd=project_dir
-            )  # pin py version
-
-            if not success:
-                logger.warning(
-                    f"Project initialized but failed to pin python version: {stderr}"
-                )
-                return f"Project initialized but failed to pin python version: {stderr}"
-
-            return f"Successfully initialized project '{name}' with Python {python_version}"
-        except Exception as e:
-            logger.error(f"Error initializing project: {e}")
-            return f"An unexpected error occurred: {str(e)}"
+        created_files = ["pyproject.toml", ".python-version"]
+        return ProjectInitResult(
+            project_name=name,
+            project_dir=str(project_dir),
+            python_version=python_version,
+            template=template,
+            success=True,
+            message=f"Successfully initialized project '{name}' with Python {python_version}",
+            created_files=created_files,
+        )
 
     @staticmethod
     async def sync_environment(
         project_path: str | None = None, upgrade: bool = False, locked: bool = False
-    ) -> SyncResult | str:
+    ) -> SyncResult:
         """
         Sync the environment with pyproject.toml or uv.lock
 
@@ -78,35 +96,35 @@ class ProjectTools:
             locked: If True, strictly asserts that uv.lock matches pyproject.toml
 
         Returns:
-            Output of the sync command or error message.
+            SyncResult with operation status.
         """
-        try:
-            cmd: list[str] = ["sync"]
-            if upgrade:
-                cmd.append("--upgrade")
-            if locked:
-                cmd.append("--locked")
+        cmd: list[str] = ["sync"]
+        if upgrade:
+            cmd.append("--upgrade")
+        if locked:
+            cmd.append("--locked")
 
-            project_dir = Path(project_path) if project_path else Path.cwd()
-            logger.info(f"Syncing environment in {project_dir}")
+        project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+        logger.info(f"Syncing environment in {project_dir}")
 
-            success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+        success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
 
-            if success:
-                return stdout if stdout else "Environment synced successfully."
-
-            logger.error(f"Failed to sync environment: {stderr}")
-            return f"Failed to sync environment: {stderr}"
-        except Exception as e:
-            logger.error(f"Error syncing environment: {e}")
-            return f"An unexpected error occurred: {str(e)}"
+        return SyncResult(
+            project_dir=str(project_dir),
+            success=success,
+            upgraded=upgrade,
+            locked=locked,
+            message="Environment synced successfully." if success else f"Failed to sync environment: {stderr}",
+            output=stdout if success else None,
+            error=stderr if not success else None,
+        )
 
     @staticmethod
     async def export_requirements(
         project_path: str | None = None,
         file_format: str = "requirements-txt",
         output_file: str | None = None,
-    ) -> SyncResult | str:
+    ) -> ExportResult:
         """
         Export dependencies to requirements.txt or other formats.
 
@@ -116,25 +134,25 @@ class ProjectTools:
             output_file: Optional file to write output to.
 
         Returns:
-            Exported requirements or status message.
+            ExportResult with operation status.
         """
-        try:
-            cmd = ["export", "--format", file_format]
-            if output_file:
-                cmd.extend(["--output-file", output_file])
+        cmd = ["export", "--format", file_format]
+        if output_file:
+            cmd.extend(["--output-file", output_file])
 
-            project_dir = Path(project_path) if project_path else Path.cwd()
-            logger.info(f"Exporting requirements from {project_dir}")
+        project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+        logger.info(f"Exporting requirements from {project_dir}")
 
-            success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+        success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
 
-            if not success:
-                logger.error(f"Failed to export requirements: {stderr}")
-                return f"Failed to export requirements: {stderr}"
-
-            if output_file:
-                return f"Dependencies exported to {output_file}"
-            return stdout
-        except Exception as e:
-            logger.error(f"Error exporting requirements: {e}")
-            return f"An unexpected error occurred: {str(e)}"
+        return ExportResult(
+            project_dir=str(project_dir),
+            file_format=file_format,
+            output_file=output_file,
+            success=success,
+            content=stdout if success and not output_file else None,
+            message=f"Dependencies exported to {output_file}" if success and output_file else (
+                "Export completed successfully." if success else f"Failed to export requirements: {stderr}"
+            ),
+            error=stderr if not success else None,
+        )

@@ -1,6 +1,5 @@
 import pytest
 import pytest_asyncio
-import shutil
 import os
 from pathlib import Path
 from src.uv_mcp.actions import (

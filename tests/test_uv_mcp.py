@@ -4,11 +4,10 @@ This module contains unit tests for all components of the uv-mcp MCP server,
 including utils, diagnostics, and server functionality.
 """
 
-import json
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -32,8 +31,6 @@ from uv_mcp.diagnostics import (
     _get_worst_health,
 )
 from uv_mcp.models import (
-    UVCheckResult,
-    InstallInstructions,
     DiagnosticReport,
     StructureCheck,
     DependencyCheck,
