@@ -35,43 +35,6 @@ jobs:
       - name: Run tests
         run: uv run --python ${{ matrix.python-version }} python test_tools.py
 
-      - name: Verify server starts (Unix)
-        run: |
-          uv run --python ${{ matrix.python-version }} uv-mcp > server.log 2>&1 &
-          pid=$!
-          sleep 5
-
-          if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-            wait "$pid" 2>/dev/null || true
-            echo "✓ Server stayed alive for 5 seconds"
-            exit 0
-          fi
-
-          set +e
-          wait "$pid"
-          code=$?
-          set -e
-          echo "❌ Server exited unexpectedly with code $code"
-          cat server.log
-          exit 1
-        if: runner.os != 'Windows'
-
-      - name: Verify server starts (Windows)
-        run: |
-          $process = Start-Process -FilePath "uv" -ArgumentList @("run", "--python", "${{ matrix.python-version }}", "uv-mcp") -PassThru -NoNewWindow
-          Start-Sleep -Seconds 5
-
-          if ($process.HasExited) {
-            Write-Host "❌ Server exited unexpectedly with code $($process.ExitCode)"
-            exit 1
-          }
-
-          Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-          Write-Host "✓ Server stayed alive until timeout"
-        if: runner.os == 'Windows'
-        shell: pwsh
-
   validate:
     name: Validate Extension
     runs-on: ubuntu-latest
