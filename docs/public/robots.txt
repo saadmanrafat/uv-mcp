@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://saadman.dev/uv-mcp/sitemap-index.xml

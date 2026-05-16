@@ -1,9 +1,9 @@
 ---
-title: uv-mcp
-description: A Model Context Protocol server for the uv package manager.
+title: "UV-MCP"
+description: "The Stop Shop MCP server for uv. 46 typed tools covering 100% of the uv CLI — diagnostics, dependencies, publishing, self-updates, and more. Built by Saadman Rafat (saadman.dev)."
 template: splash
 hero:
-  tagline: Python environment management, reimagined for the AI era.
+  tagline: "The Stop Shop for Python Environment Management"
   image:
     file: ../../assets/houston.webp
   actions:
@@ -14,46 +14,149 @@ hero:
     - text: View on GitHub
       link: https://github.com/saadmanrafat/uv-mcp
       icon: external
+      variant: secondary
+    - text: Follow on X
+      link: https://twitter.com/saadmanrafat
+      icon: twitter
+      variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkButton } from '@astrojs/starlight/components';
+
+{/* Stats Banner */}
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin: 2rem 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #30363d; border-radius: 12px; padding: 1.5rem;">
+    <div style="font-size: 2.5rem; font-weight: 800; color: #00d4ff;">46</div>
+    <div style="font-size: 0.875rem; color: #8b949e;">MCP Tools</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #30363d; border-radius: 12px; padding: 1.5rem;">
+    <div style="font-size: 2.5rem; font-weight: 800; color: #00d4ff;">100%</div>
+    <div style="font-size: 0.875rem; color: #8b949e;">uv CLI Coverage</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #30363d; border-radius: 12px; padding: 1.5rem;">
+    <div style="font-size: 2.5rem; font-weight: 800; color: #00d4ff;">138</div>
+    <div style="font-size: 0.875rem; color: #8b949e;">Tests Passing</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #30363d; border-radius: 12px; padding: 1.5rem;">
+    <div style="font-size: 2.5rem; font-weight: 800; color: #00d4ff;">0</div>
+    <div style="font-size: 0.875rem; color: #8b949e;">Breaking Changes</div>
+  </div>
+</div>
+
+---
+
+## What is UV-MCP?
+
+UV-MCP is a **Model Context Protocol (MCP)** server that translates natural language into precise `uv` commands. It enables AI assistants — Gemini, Claude, OpenCode, and any MCP client — to autonomously manage Python environments, dependencies, and project lifecycles.
+
+Instead of memorizing 46 different CLI flags, just say:
+
+> *"Create a virtual environment with seed packages, install requests, and run my script."*
+
+UV-MCP handles the rest.
+
+---
 
 ## Key Features
 
 <CardGrid stagger>
-	<Card title="Zero-Config Integration" icon="puzzle">
-		Seamlessly plugs into Gemini, Claude, and other MCP-compliant clients.
+	<Card title="46 Typed Tools" icon="setting" >
+		Every `uv` command is a structured, type-safe MCP tool with Pydantic models. From `uv add` to `uv publish`, nothing is left behind.
 	</Card>
-	<Card title="Autonomic Repair" icon="setting">
-		Intelligent diagnostics that detect and fix broken Python environments automatically.
+	<Card title="Self-Healing Diagnostics" icon="rocket" >
+		Detects `ModuleNotFoundError`, suggests `uv add` fixes, and auto-syncs environments. Broken projects repair themselves.
 	</Card>
-	<Card title="Natural Language Management" icon="list-format">
-		Install, remove, and sync dependencies using simple conversational prompts.
+	<Card title="Workspace Introspection" icon="magnifier" >
+		Parses `[tool.uv.workspace]` members from `pyproject.toml` and emits topological dependency graphs for monorepos.
 	</Card>
-	<Card title="Deep Introspection" icon="magnifier">
-		Visualize dependency trees, audit outdated packages, and inspect metadata with precision.
+	<Card title="Ephemeral Tool Runner" icon="puzzle" >
+		Run any CLI tool via `uv tool run` without permanent installation. Great for one-off formatters, linters, and utilities.
 	</Card>
-	<Card title="Build & Distribution" icon="rocket">
-		Build wheel and source distributions ready for PyPI publishing (v0.6.4+).
+	<Card title="Concurrency Safe" icon="warning" >
+		`asyncio.Lock()` serializes mutating commands to prevent `uv.lock` deadlocks during concurrent AI tool calls.
 	</Card>
-	<Card title="Enhanced Error Handling" icon="warning">
-		Actionable error messages with suggestions to resolve issues quickly (v0.6.4+).
+	<Card title="ANSI-Free Output" icon="document" >
+		Guaranteed clean, parseable streams by injecting `UV_COLOR=never` and `TERM=dumb` on every subprocess.
 	</Card>
 </CardGrid>
 
-## What's New in v1.0.0
+---
 
-- **The Stop Shop Release**: 46 MCP tools covering **100% of the uv CLI surface area**
-- **Virtual Environment Management**: Create `.venv` with seed packages, relocatable mode, system site packages
-- **Script Execution**: Run any command via `uv run` with temporary `--with` dependencies
-- **Project Version & Formatting**: Bump versions, format code with Ruff
-- **Pip Compatibility**: Compile, sync, freeze, install, uninstall via `uv pip`
-- **Tool Management**: Install, upgrade, list, uninstall global CLI tools
-- **Cache Introspection**: View cache dir, size, and prune unreachable entries
-- **Publishing**: Upload distributions to PyPI with dry-run support
-- **Self Management**: Update the uv binary itself
-- **Concurrency Lockfile Protection**: `asyncio.Lock()` prevents `uv.lock` deadlocks
-- **Absolute Path Resolution**: All project paths normalized to filesystem roots
-- **ANSI-Free Streams**: Guaranteed clean subprocess output
+## Tool Categories
 
-**Total coverage**: 46 tools | 0 gaps | 1.0.0 stable
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 2rem 0;">
+  <div style="border: 1px solid #30363d; border-radius: 10px; padding: 1.25rem; background: #0d1117;">
+    <strong style="color: #00d4ff;">🏗 Project Lifecycle</strong>
+    <p style="margin: 0.5rem 0 0; color: #c9d1d9; font-size: 0.875rem;">init, version, format, build, publish, lock</p>
+  </div>
+  <div style="border: 1px solid #30363d; border-radius: 10px; padding: 1.25rem; background: #0d1117;">
+    <strong style="color: #00d4ff;">📦 Dependencies</strong>
+    <p style="margin: 0.5rem 0 0; color: #c9d1d9; font-size: 0.875rem;">add, remove, sync, tree, list, show, outdated, freeze</p>
+  </div>
+  <div style="border: 1px solid #30363d; border-radius: 10px; padding: 1.25rem; background: #0d1117;">
+    <strong style="color: #00d4ff;">🐍 Python</strong>
+    <p style="margin: 0.5rem 0 0; color: #c9d1d9; font-size: 0.875rem;">install, pin, find, upgrade, uninstall, dir</p>
+  </div>
+  <div style="border: 1px solid #30363d; border-radius: 10px; padding: 1.25rem; background: #0d1117;">
+    <strong style="color: #00d4ff;">🔧 Virtual Env</strong>
+    <p style="margin: 0.5rem 0 0; color: #c9d1d9; font-size: 0.875rem;">create venv, seed, relocatable, system-site-packages</p>
+  </div>
+  <div style="border: 1px solid #30363d; border-radius: 10px; padding: 1.25rem; background: #0d1117;">
+    <strong style="color: #00d4ff;">⚡ Ephemeral</strong>
+    <p style="margin: 0.5rem 0 0; color: #c9d1d9; font-size: 0.875rem;">run script, uvx proxy, temporary --with deps</p>
+  </div>
+  <div style="border: 1px solid #30363d; border-radius: 10px; padding: 1.25rem; background: #0d1117;">
+    <strong style="color: #00d4ff;">🧪 Diagnostics</strong>
+    <p style="margin: 0.5rem 0 0; color: #c9d1d9; font-size: 0.875rem;">check, repair, self-heal, workspace manifest</p>
+  </div>
+</div>
+
+---
+
+## Quick Start
+
+<div style="background: #0d1117; border: 1px solid #30363d; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0;">
+<pre style="margin: 0; color: #c9d1d9; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;"><code>
+<span style="color: #8b949e;"># Install via uv</span>
+<span style="color: #00d4ff;">$ uv tool install uv-mcp</span>
+
+<span style="color: #8b949e;"># Or add to your project</span>
+<span style="color: #00d4ff;">$ uv add --dev uv-mcp</span>
+
+<span style="color: #8b949e;"># Run the server</span>
+<span style="color: #00d4ff;">$ uv run uv-mcp</span>
+</code></pre>
+</div>
+
+---
+
+## Built by Saadman Rafat
+
+<div style="display: flex; align-items: center; gap: 1rem; margin: 2rem 0; padding: 1.5rem; border: 1px solid #30363d; border-radius: 12px; background: linear-gradient(135deg, #1a1a2e, #16213e);">
+  <div style="flex-shrink: 0;">
+    <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #00d4ff, #0099cc); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: #fff;">S</div>
+  </div>
+  <div>
+    <strong style="color: #00d4ff; font-size: 1.125rem;">Saadman Rafat</strong>
+    <p style="margin: 0.25rem 0 0; color: #8b949e; font-size: 0.875rem;">
+      Creator of UV-MCP · <a href="https://saadman.dev" style="color: #00d4ff; text-decoration: none;">saadman.dev</a> · 
+      <a href="https://github.com/saadmanrafat" style="color: #00d4ff; text-decoration: none;">GitHub</a> · 
+      <a href="https://twitter.com/saadmanrafat" style="color: #00d4ff; text-decoration: none;">X/Twitter</a> · 
+      <a href="https://linkedin.com/in/saadmanrafat" style="color: #00d4ff; text-decoration: none;">LinkedIn</a>
+    </p>
+  </div>
+</div>
+
+---
+
+<CardGrid>
+  <Card title="Read the Guide" icon="open-book">
+    <p>Learn how to install, configure, and use all 46 tools with real-world examples.</p>
+    <LinkButton href="/uv-mcp/guides/introduction/" variant="primary">Get Started</LinkButton>
+  </Card>
+  <Card title="Explore the API" icon="document">
+    <p>Complete technical reference for every MCP tool, input schema, and return type.</p>
+    <LinkButton href="/uv-mcp/reference/tools/" variant="secondary">Tool Reference</LinkButton>
+  </Card>
+</CardGrid>

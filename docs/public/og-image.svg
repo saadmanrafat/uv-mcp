@@ -1,0 +1,63 @@
+<svg viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e" />
+      <stop offset="100%" stop-color="#16213e" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#00d4ff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)" />
+  
+  <!-- Glow -->
+  <circle cx="600" cy="315" r="350" fill="url(#glow)" />
+  
+  <!-- Grid pattern (subtle) -->
+  <g stroke="#ffffff" stroke-opacity="0.03" stroke-width="1">
+    <defs>
+      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" />
+      </pattern>
+    </defs>
+    <rect width="1200" height="630" fill="url(#grid)" />
+  </g>
+  
+  <!-- Terminal window -->
+  <rect x="120" y="180" width="960" height="270" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="2" />
+  
+  <!-- Window controls -->
+  <circle cx="150" cy="208" r="6" fill="#ff5f56" />
+  <circle cx="170" cy="208" r="6" fill="#ffbd2e" />
+  <circle cx="190" cy="208" r="6" fill="#27ca40" />
+  
+  <!-- Terminal text -->
+  <text x="150" y="260" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="20" fill="#8b949e">
+    <tspan>$ uv run ruff check .</tspan>
+  </text>
+  <text x="150" y="300" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="20" fill="#00d4ff">
+    <tspan>All checks passed!</tspan>
+  </text>
+  <text x="150" y="340" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="20" fill="#8b949e">
+    <tspan>$ uv publish --dry-run</tspan>
+  </text>
+  <text x="150" y="380" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="20" fill="#00d4ff">
+    <tspan>Would upload mypackage-1.0.0.tar.gz</tspan>
+  </text>
+
+  <!-- Title text -->
+  <text x="600" y="100" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="48" font-weight="bold" fill="#ffffff" text-anchor="middle">
+    UV-MCP
+  </text>
+  <text x="600" y="145" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="24" fill="#00d4ff" text-anchor="middle">
+    The Stop Shop for Python Environment Management
+  </text>
+  
+  <!-- Bottom tag -->
+  <text x="600" y="520" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="16" fill="#8b949e" text-anchor="middle">
+    46 MCP tools  ·  100% uv CLI coverage  ·  Open Source
+  </text>
+</svg>
