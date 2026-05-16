@@ -41,11 +41,19 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	</Card>
 </CardGrid>
 
-## What's New in v0.8.0
+## What's New in v1.0.0
 
-- **Ephemeral Tool Runner**: Run any CLI tool via `uv tool run` (`uvx`) on-demand without permanent installation
-- **Workspace Introspection**: Explore monorepo workspaces defined in `pyproject.toml` with full dependency graphs
-- **Self-Healing Diagnostics**: Automatically detect and fix `ModuleNotFoundError` with targeted `uv add` suggestions
-- **ANSI-Free Streams**: Guaranteed clean subprocess output with `UV_COLOR=never` and `TERM=dumb`
-- **Concurrency Lockfile Protection**: Prevents `uv.lock` corruption during concurrent tool calls via `asyncio.Lock()`
-- **Absolute Path Resolution**: All project paths normalized to filesystem roots before passing to `uv --directory`
+- **The Stop Shop Release**: 46 MCP tools covering **100% of the uv CLI surface area**
+- **Virtual Environment Management**: Create `.venv` with seed packages, relocatable mode, system site packages
+- **Script Execution**: Run any command via `uv run` with temporary `--with` dependencies
+- **Project Version & Formatting**: Bump versions, format code with Ruff
+- **Pip Compatibility**: Compile, sync, freeze, install, uninstall via `uv pip`
+- **Tool Management**: Install, upgrade, list, uninstall global CLI tools
+- **Cache Introspection**: View cache dir, size, and prune unreachable entries
+- **Publishing**: Upload distributions to PyPI with dry-run support
+- **Self Management**: Update the uv binary itself
+- **Concurrency Lockfile Protection**: `asyncio.Lock()` prevents `uv.lock` deadlocks
+- **Absolute Path Resolution**: All project paths normalized to filesystem roots
+- **ANSI-Free Streams**: Guaranteed clean subprocess output
+
+**Total coverage**: 46 tools | 0 gaps | 1.0.0 stable

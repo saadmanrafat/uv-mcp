@@ -187,6 +187,125 @@ New workflows for packaging and distributing your Python projects.
 > "Sync the environment"
 ```
 
+## Virtual Environment & Script Execution (v1.0.0+)
+
+### Creating Virtual Environments Explicitly
+
+**Intent**: Create a new `.venv` with specific options.
+
+> "Create a virtual environment with seed packages."
+> "Make the venv relocatable."
+> "Clear the existing venv and recreate it."
+
+**System Actions**:
+- `create_venv`: Creates `.venv` with `--seed`, `--relocatable`, `--clear`, `--system-site-packages`.
+
+### Running Scripts & Commands
+
+**Intent**: Execute arbitrary commands inside the project's environment.
+
+> "Run pytest in the project."
+> "Execute python -m my_module with temporary dependencies."
+
+**System Actions**:
+- `run_script`: Executes `uv run` with optional `--with` temporary packages.
+
+## Project Version & Formatting (v1.0.0+)
+
+### Version Management
+
+**Intent**: Read, set, or bump the project version.
+
+> "What is the current project version?"
+> "Bump the minor version."
+> "Set version to 2.0.0."
+
+**System Actions**:
+- `project_version`: Wraps `uv version` with `--bump` and `--dry-run` support.
+
+### Code Formatting
+
+**Intent**: Format Python code with Ruff.
+
+> "Format the codebase."
+> "Check if files are formatted without making changes."
+> "Show a diff of formatting changes."
+
+**System Actions**:
+- `format_code`: Runs `uv format` with `--check` or `--diff`.
+
+## Pip Compatibility (v1.0.0+)
+
+### Legacy Requirements Workflows
+
+**Intent**: Work with legacy `requirements.txt` files.
+
+> "Compile requirements.in to requirements.txt."
+> "Sync environment from requirements.txt."
+> "Freeze installed packages to requirements format."
+> "Install packages imperatively without pyproject.toml."
+
+**System Actions**:
+- `pip_compile`: Compiles `requirements.in` → `requirements.txt`.
+- `pip_sync_requirements`: Syncs from `requirements.txt`.
+- `pip_freeze`: Lists installed packages in requirements format.
+- `pip_install` / `pip_uninstall`: Imperative pip-style operations.
+
+## Tool Management (v1.0.0+)
+
+### Managing Global CLI Tools
+
+**Intent**: Install, upgrade, or remove globally available Python CLI tools.
+
+> "Install ruff as a global tool."
+> "List all installed tools."
+> "Upgrade black."
+> "Uninstall httpie."
+
+**System Actions**:
+- `tool_install`: Installs a tool globally.
+- `tool_upgrade`: Upgrades one or all tools.
+- `tool_list`: Lists installed tools.
+- `tool_uninstall`: Removes a tool.
+
+## Cache Introspection (v1.0.0+)
+
+### Inspecting Cache State
+
+**Intent**: Understand cache disk usage and prune stale entries.
+
+> "Show the cache directory path."
+> "How much disk space is the cache using?"
+> "Prune unreachable cache objects."
+
+**System Actions**:
+- `cache_dir`: Shows cache directory.
+- `cache_size`: Shows human-readable cache size.
+- `prune_cache`: Removes unreachable cache entries.
+
+## Publishing & Self Management (v1.0.0+)
+
+### Publishing Packages
+
+**Intent**: Upload distributions to PyPI or a private index.
+
+> "Publish the project to PyPI."
+> "Dry-run the publish step."
+
+**System Actions**:
+- `publish_project`: Wraps `uv publish` with `--dry-run` support.
+
+### Updating uv Itself
+
+**Intent**: Keep the uv binary up to date.
+
+> "Update uv to the latest version."
+> "What version of uv is installed?"
+
+**System Actions**:
+- `self_update`: Updates the uv binary.
+- `self_version`: Displays uv binary version.
+
 ## Error Handling & Troubleshooting (v0.7.2+)
 
 ### Understanding Error Messages

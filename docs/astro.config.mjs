@@ -7,9 +7,12 @@ export default defineConfig({
 	site: 'https://saadman.dev',
 	base: '/uv-mcp',
 	integrations: [
-		starlight({
-			title: 'UV-MCP',
-			social: [
+			starlight({
+				title: 'UV-MCP',
+				components: {
+					Footer: './src/components/Footer.astro',
+				},
+				social: [
 				{
 					icon: 'github',
 					href: 'https://github.com/saadmanrafat/uv-mcp',

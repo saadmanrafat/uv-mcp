@@ -5,6 +5,47 @@ description: Release history and version updates for UV-MCP.
 
 # Changelog
 
+## [1.0.0] - 2026-05-16
+
+### The Stop Shop Release
+
+UV-MCP now covers the **entire uv CLI surface area**. Every command from `uv --help` is now available as a typed MCP tool.
+
+### Added (24 new tools)
+
+| Tool | uv Command | Purpose |
+|---|---|---|
+| `uv_create_venv` | `uv venv` | Create `.venv` with `--seed`, `--relocatable`, `--clear`, `--system-site-packages` |
+| `uv_run_script` | `uv run` | Execute scripts/commands with optional `--with` temporary deps |
+| `uv_project_version` | `uv version` | Read, set, or bump project version |
+| `uv_format_code` | `uv format` | Format Python code via Ruff (`--check`, `--diff`) |
+| `uv_pip_compile` | `uv pip compile` | Compile `requirements.in` → `requirements.txt` |
+| `uv_pip_sync_requirements` | `uv pip sync` | Sync environment from `requirements.txt` |
+| `uv_pip_freeze` | `uv pip freeze` | Freeze installed packages |
+| `uv_pip_install` | `uv pip install` | Imperative package installation |
+| `uv_pip_uninstall` | `uv pip uninstall` | Imperative package removal |
+| `uv_tool_install` | `uv tool install` | Install global CLI tools |
+| `uv_tool_upgrade` | `uv tool upgrade` | Upgrade installed tools |
+| `uv_tool_list` | `uv tool list` | List installed tools |
+| `uv_tool_uninstall` | `uv tool uninstall` | Remove installed tools |
+| `uv_prune_cache` | `uv cache prune` | Prune unreachable cache objects |
+| `uv_cache_dir` | `uv cache dir` | Show cache directory path |
+| `uv_cache_size` | `uv cache size` | Show cache disk usage |
+| `uv_find_python` | `uv python find` | Find Python installations |
+| `uv_python_dir` | `uv python dir` | Show Python installation directory |
+| `uv_upgrade_python_version` | `uv python upgrade` | Upgrade Python installations |
+| `uv_uninstall_python_version` | `uv python uninstall` | Uninstall Python versions |
+| `uv_publish_project` | `uv publish` | Publish distributions to PyPI |
+| `uv_self_update` | `uv self update` | Update the uv binary |
+| `uv_self_version` | `uv self version` | Display uv binary version |
+
+### New Models
+- `VenvResult`, `ScriptRunResult`, `VersionResult`, `FormatResult`, `PipCompileResult`, `PipSyncResult`, `PipFreezeResult`, `ToolListResult`, `CacheInfoResult`, `PublishResult`, `SelfUpdateResult`
+
+### Total Tool Count: **46 MCP tools** covering 100% of uv CLI functionality.
+
+---
+
 ## [0.8.0] - 2026-05-16
 
 ### Added

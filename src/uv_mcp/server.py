@@ -24,6 +24,7 @@ from .actions import (
 from .diagnostics import generate_diagnostic_report
 from .models import (
     BuildResult,
+    CacheInfoResult,
     CacheOperationResult,
     DependencyListResult,
     DependencyOperationResult,
@@ -31,19 +32,30 @@ from .models import (
     DiagnosticReportSummary,
     EphemeralToolResult,
     ExportResult,
+    FormatResult,
     HealingAction,
     InstallInstructions,
     OutdatedCheckResult,
     PackageInfoResult,
+    PipCompileResult,
+    PipFreezeResult,
+    PipSyncResult,
     ProjectInitResult,
+    PublishResult,
     PythonInstallResult,
     PythonListResult,
     PythonPinResult,
+    PythonVersion,
     RepairResult,
+    ScriptRunResult,
     SelfHealingDiagnostics,
+    SelfUpdateResult,
     SyncResult,
+    ToolListResult,
     TreeAnalysisResult,
     UVCheckResult,
+    VenvResult,
+    VersionResult,
     WorkspaceManifest,
     WorkspaceMember,
 )
@@ -698,6 +710,729 @@ async def uv_self_heal_environment(
         actions=actions,
         missing_packages=list(set(missing_packages)),
         recommendations=recommendations,
+    )
+
+
+@mcp.tool()
+async def uv_create_venv(
+    project_path: str | None = None,
+    seed: bool = False,
+    clear: bool = False,
+    relocatable: bool = False,
+    system_site_packages: bool = False,
+) -> VenvResult:
+    """
+    Create a new virtual environment for the project.
+
+    Args:
+        project_path: Path to project directory (defaults to current directory).
+        seed: Install seed packages (pip, setuptools, wheel) into the venv.
+        clear: Remove any existing files at the target venv path.
+        relocatable: Make the virtual environment relocatable.
+        system_site_packages: Give venv access to system site packages.
+
+    Returns:
+        VenvResult with the venv path and creation status.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command, find_uv_project_root
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    cmd = ["venv"]
+    if seed:
+        cmd.append("--seed")
+    if clear:
+        cmd.append("--clear")
+    if relocatable:
+        cmd.append("--relocatable")
+    if system_site_packages:
+        cmd.append("--system-site-packages")
+
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    venv_path = project_dir / ".venv"
+    return VenvResult(
+        path=str(venv_path),
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_run_script(
+    command: list[str],
+    project_path: str | None = None,
+    with_packages: list[str] | None = None,
+) -> ScriptRunResult:
+    """
+    Run a command or script inside the project's environment.
+
+    Args:
+        command: The command + arguments to execute (e.g., ["python", "-c", "print(1)"]).
+        project_path: Optional project directory.
+        with_packages: Temporary packages to install for this run only.
+
+    Returns:
+        ScriptRunResult with stdout, stderr, and return code.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command
+
+    project_dir = Path(project_path).resolve() if project_path else None
+
+    cmd: list[str] = ["run"]
+    if with_packages:
+        for pkg in with_packages:
+            cmd.extend(["--with", pkg])
+    cmd.extend(command)
+
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    return ScriptRunResult(
+        command=command,
+        success=success,
+        stdout=stdout if stdout else None,
+        stderr=stderr if stderr else None,
+        return_code=0 if success else 1,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_project_version(
+    value: str | None = None,
+    bump: str | None = None,
+    project_path: str | None = None,
+    dry_run: bool = False,
+) -> VersionResult:
+    """
+    Read or update the project's version in pyproject.toml.
+
+    Args:
+        value: Set the version to this exact string (e.g., "1.2.3").
+        bump: Bump semantics: major, minor, patch.
+        project_path: Project directory (defaults to current directory).
+        dry_run: If True, do not write changes.
+
+    Returns:
+        VersionResult with the current (and optionally previous) version.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command, find_uv_project_root
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    cmd: list[str] = ["version"]
+    if bump:
+        cmd.extend(["--bump", bump])
+    if dry_run:
+        cmd.append("--dry-run")
+    if value:
+        cmd.append(value)
+
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    previous = None
+    current = ""
+    if success and stdout:
+        lines = stdout.strip().splitlines()
+        if lines:
+            current = lines[-1].strip()
+
+    return VersionResult(
+        version=current,
+        previous_version=previous,
+        project_dir=str(project_dir),
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_format_code(
+    project_path: str | None = None,
+    check: bool = False,
+    diff: bool = False,
+) -> FormatResult:
+    """
+    Format Python code in the project using Ruff.
+
+    Args:
+        project_path: Project directory (defaults to current directory).
+        check: If True, only check if files are formatted (no changes).
+        diff: If True, show a diff of formatting changes.
+
+    Returns:
+        FormatResult with formatting status.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command, find_uv_project_root
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    cmd: list[str] = ["format"]
+    if check:
+        cmd.append("--check")
+    if diff:
+        cmd.append("--diff")
+
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    return FormatResult(
+        project_dir=str(project_dir),
+        success=success,
+        check_only=check,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_pip_compile(
+    input_file: str = "requirements.in",
+    output_file: str = "requirements.txt",
+    project_path: str | None = None,
+) -> PipCompileResult:
+    """
+    Compile a requirements.in file to a pinned requirements.txt.
+
+    Args:
+        input_file: Source requirements file (default: requirements.in).
+        output_file: Output pinned requirements file (default: requirements.txt).
+        project_path: Project directory (defaults to current directory).
+
+    Returns:
+        PipCompileResult with the generated requirements content.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+
+    cmd = ["pip", "compile", input_file, "--output-file", output_file]
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    content = None
+    line_count = None
+    if success:
+        out_path = project_dir / output_file
+        if out_path.exists():
+            content = out_path.read_text()
+            line_count = len(content.splitlines())
+
+    return PipCompileResult(
+        input_file=input_file,
+        output_file=output_file,
+        success=success,
+        content=content,
+        line_count=line_count,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_pip_sync_requirements(
+    requirements_file: str = "requirements.txt",
+    project_path: str | None = None,
+) -> PipSyncResult:
+    """
+    Sync the environment with a requirements.txt file.
+
+    Args:
+        requirements_file: Path to the requirements file (default: requirements.txt).
+        project_path: Project directory (defaults to current directory).
+
+    Returns:
+        PipSyncResult with sync status.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+
+    cmd = ["pip", "sync", requirements_file]
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    return PipSyncResult(
+        requirements_file=requirements_file,
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_pip_freeze(
+    project_path: str | None = None,
+) -> PipFreezeResult:
+    """
+    Freeze installed packages into requirements format.
+
+    Args:
+        project_path: Project directory (defaults to current directory).
+
+    Returns:
+        PipFreezeResult with the frozen requirements text.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+
+    success, stdout, stderr = await run_uv_command(["pip", "freeze"], cwd=project_dir)
+
+    return PipFreezeResult(
+        success=success,
+        requirements=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_pip_install(
+    packages: list[str],
+    project_path: str | None = None,
+) -> DependencyOperationResult:
+    """
+    Install packages imperatively using uv pip install.
+
+    Args:
+        packages: List of package specifiers (e.g., ["requests", "numpy>=1.24"]).
+        project_path: Project directory (defaults to current directory).
+
+    Returns:
+        DependencyOperationResult with install status.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+
+    cmd = ["pip", "install", *packages]
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    return DependencyOperationResult(
+        package=", ".join(packages),
+        project_dir=str(project_dir),
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_pip_uninstall(
+    packages: list[str],
+    project_path: str | None = None,
+) -> DependencyOperationResult:
+    """
+    Uninstall packages imperatively using uv pip uninstall.
+
+    Args:
+        packages: List of package names to remove.
+        project_path: Project directory (defaults to current directory).
+
+    Returns:
+        DependencyOperationResult with uninstall status.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+
+    cmd = ["pip", "uninstall", "-y", *packages]
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    return DependencyOperationResult(
+        package=", ".join(packages),
+        project_dir=str(project_dir),
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_tool_install(
+    package: str,
+) -> ToolListResult:
+    """
+    Permanently install a Python CLI tool via uv tool install.
+
+    Args:
+        package: Package name (e.g., "ruff", "black", "httpie").
+
+    Returns:
+        ToolListResult with installation status.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["tool", "install", package])
+
+    return ToolListResult(
+        tools=[package] if success else [],
+        count=1 if success else 0,
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_tool_upgrade(
+    package: str | None = None,
+) -> ToolListResult:
+    """
+    Upgrade installed uv tools. If no package is specified, upgrades all.
+
+    Args:
+        package: Specific package to upgrade, or None for all.
+
+    Returns:
+        ToolListResult with upgrade status.
+    """
+    from .utils import run_uv_command
+
+    cmd = ["tool", "upgrade"]
+    if package:
+        cmd.append(package)
+
+    success, stdout, stderr = await run_uv_command(cmd)
+
+    return ToolListResult(
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_tool_list() -> ToolListResult:
+    """
+    List all tools installed via uv tool install.
+
+    Returns:
+        ToolListResult with installed tool names.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["tool", "list"])
+
+    tools: list[str] = []
+    if success and stdout:
+        for line in stdout.strip().splitlines():
+            parts = line.split()
+            if parts:
+                tools.append(parts[0])
+
+    return ToolListResult(
+        tools=tools,
+        count=len(tools),
+        success=success,
+        output=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_tool_uninstall(
+    package: str,
+) -> ToolListResult:
+    """
+    Uninstall a tool previously installed via uv tool install.
+
+    Args:
+        package: Package name to uninstall.
+
+    Returns:
+        ToolListResult with uninstall status.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["tool", "uninstall", package])
+
+    return ToolListResult(
+        tools=[],
+        count=0,
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_prune_cache() -> CacheInfoResult:
+    """
+    Prune unreachable objects from the uv cache.
+
+    Returns:
+        CacheInfoResult with prune status.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["cache", "prune"])
+
+    return CacheInfoResult(
+        operation="prune",
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_cache_dir() -> CacheInfoResult:
+    """
+    Show the uv cache directory path.
+
+    Returns:
+        CacheInfoResult with the cache directory.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["cache", "dir"])
+
+    return CacheInfoResult(
+        operation="dir",
+        path=stdout.strip() if success else None,
+        success=success,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_cache_size() -> CacheInfoResult:
+    """
+    Show the uv cache disk usage.
+
+    Returns:
+        CacheInfoResult with human-readable size.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["cache", "size"])
+
+    return CacheInfoResult(
+        operation="size",
+        size=stdout.strip() if success else None,
+        success=success,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_find_python(
+    version: str | None = None,
+) -> PythonListResult:
+    """
+    Find a Python installation managed by uv.
+
+    Args:
+        version: Optional version to search for (e.g., "3.12").
+
+    Returns:
+        PythonListResult with matching installations.
+    """
+    from .utils import run_uv_command
+
+    cmd = ["python", "find"]
+    if version:
+        cmd.append(version)
+
+    success, stdout, stderr = await run_uv_command(cmd)
+
+    versions: list[PythonVersion] = []
+    if success and stdout:
+        for line in stdout.strip().splitlines():
+            parts = line.split()
+            if parts:
+                versions.append(
+                    PythonVersion(
+                        version=parts[0],
+                        path=parts[1] if len(parts) > 1 else None,
+                    )
+                )
+
+    return PythonListResult(
+        versions=versions,
+        output=stdout if success else stderr,
+    )
+
+
+@mcp.tool()
+async def uv_python_dir() -> CacheInfoResult:
+    """
+    Show the uv Python installation directory.
+
+    Returns:
+        CacheInfoResult with the directory path.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["python", "dir"])
+
+    return CacheInfoResult(
+        operation="dir",
+        path=stdout.strip() if success else None,
+        success=success,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_upgrade_python_version(
+    version: str,
+) -> PythonInstallResult:
+    """
+    Upgrade an installed Python version to the latest patch.
+
+    Args:
+        version: Python version to upgrade (e.g., "3.12").
+
+    Returns:
+        PythonInstallResult with upgrade status.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["python", "upgrade", version])
+
+    return PythonInstallResult(
+        version=version,
+        success=success,
+        output=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_uninstall_python_version(
+    version: str,
+) -> PythonInstallResult:
+    """
+    Uninstall a Python version managed by uv.
+
+    Args:
+        version: Python version to uninstall (e.g., "3.11").
+
+    Returns:
+        PythonInstallResult with uninstall status.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["python", "uninstall", version])
+
+    return PythonInstallResult(
+        version=version,
+        success=success,
+        output=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_publish_project(
+    project_path: str | None = None,
+    files: list[str] | None = None,
+    dry_run: bool = False,
+    token: str | None = None,
+) -> PublishResult:
+    """
+    Publish distributions (wheel / sdist) to a package index.
+
+    Args:
+        project_path: Project directory (defaults to current directory).
+        files: Explicit files to publish (defaults to dist/*).
+        dry_run: Perform a dry run without uploading.
+        token: API token for the index (optional, for security consider env vars).
+
+    Returns:
+        PublishResult with upload status.
+    """
+    from pathlib import Path
+    from .utils import run_uv_command, find_uv_project_root
+
+    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    root = find_uv_project_root(project_dir)
+    if root:
+        project_dir = root
+
+    cmd: list[str] = ["publish"]
+    if dry_run:
+        cmd.append("--dry-run")
+    if token:
+        cmd.extend(["--token", token])
+    if files:
+        cmd.extend(files)
+
+    success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
+
+    artifacts = files if files else []
+    if not artifacts and (project_dir / "dist").exists():
+        artifacts = [str(f.name) for f in (project_dir / "dist").iterdir() if f.is_file()]
+
+    return PublishResult(
+        project_dir=str(project_dir),
+        files=artifacts,
+        success=success,
+        dry_run=dry_run,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_self_update() -> SelfUpdateResult:
+    """
+    Update the uv binary to the latest version.
+
+    Returns:
+        SelfUpdateResult with previous and new version.
+    """
+    from .utils import run_uv_command, check_uv_available
+
+    _, previous = await check_uv_available()
+
+    success, stdout, stderr = await run_uv_command(["self", "update"])
+
+    _, new_version = await check_uv_available()
+
+    return SelfUpdateResult(
+        previous_version=previous,
+        new_version=new_version,
+        success=success,
+        message=stdout if success else None,
+        error=stderr if not success else None,
+    )
+
+
+@mcp.tool()
+async def uv_self_version() -> SelfUpdateResult:
+    """
+    Display the uv binary's version.
+
+    Returns:
+        SelfUpdateResult with version string.
+    """
+    from .utils import run_uv_command
+
+    success, stdout, stderr = await run_uv_command(["--version"])
+
+    return SelfUpdateResult(
+        new_version=stdout.strip() if success else None,
+        success=success,
+        error=stderr if not success else None,
     )
 
 

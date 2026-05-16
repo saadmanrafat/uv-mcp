@@ -295,6 +295,190 @@ Clears the UV package cache to resolve corrupted packages or free disk space.
     await clear_cache(package="requests")
     ```
 
+## Virtual Environment (v1.0.0+)
+
+### `create_venv`
+
+Create a virtual environment for the project.
+
+-   **Signature**: `create_venv(project_path: str = None, seed: bool = False, clear: bool = False, relocatable: bool = False, system_site_packages: bool = False) -> VenvResult`
+-   **Description**: Creates `.venv` with optional seed packages, clear mode, relocatable flag, or system site packages access.
+-   **Returns**: `VenvResult` with the created venv path.
+
+## Script Execution (v1.0.0+)
+
+### `run_script`
+
+Run a command inside the project's environment.
+
+-   **Signature**: `run_script(command: list[str], project_path: str = None, with_packages: list[str] = None) -> ScriptRunResult`
+-   **Description**: Executes arbitrary commands via `uv run`. Supports temporary `--with` packages.
+-   **Example**:
+    ```python
+    await run_script(command=["python", "-c", "print(1)"], with_packages=["requests"])
+    ```
+
+## Project Lifecycle (v1.0.0+)
+
+### `project_version`
+
+Read or update the project's version.
+
+-   **Signature**: `project_version(value: str = None, bump: str = None, project_path: str = None, dry_run: bool = False) -> VersionResult`
+-   **Description**: Wraps `uv version`. Supports setting an exact value or bumping (major, minor, patch).
+
+### `format_code`
+
+Format Python code using Ruff.
+
+-   **Signature**: `format_code(project_path: str = None, check: bool = False, diff: bool = False) -> FormatResult`
+-   **Description**: Runs `uv format` with optional `--check` or `--diff` modes.
+
+## Pip Compatibility (v1.0.0+)
+
+### `pip_compile`
+
+Compile `requirements.in` to a pinned `requirements.txt`.
+
+-   **Signature**: `pip_compile(input_file: str = "requirements.in", output_file: str = "requirements.txt", project_path: str = None) -> PipCompileResult`
+-   **Description**: Wraps `uv pip compile`.
+
+### `pip_sync_requirements`
+
+Sync environment from a `requirements.txt`.
+
+-   **Signature**: `pip_sync_requirements(requirements_file: str = "requirements.txt", project_path: str = None) -> PipSyncResult`
+-   **Description**: Wraps `uv pip sync`.
+
+### `pip_freeze`
+
+Freeze installed packages.
+
+-   **Signature**: `pip_freeze(project_path: str = None) -> PipFreezeResult`
+-   **Description**: Wraps `uv pip freeze`.
+
+### `pip_install`
+
+Imperatively install packages.
+
+-   **Signature**: `pip_install(packages: list[str], project_path: str = None) -> DependencyOperationResult`
+-   **Description**: Wraps `uv pip install`.
+
+### `pip_uninstall`
+
+Imperatively uninstall packages.
+
+-   **Signature**: `pip_uninstall(packages: list[str], project_path: str = None) -> DependencyOperationResult`
+-   **Description**: Wraps `uv pip uninstall`.
+
+## Tool Management (v1.0.0+)
+
+### `tool_install`
+
+Permanently install a CLI tool.
+
+-   **Signature**: `tool_install(package: str) -> ToolListResult`
+-   **Description**: Wraps `uv tool install`.
+
+### `tool_upgrade`
+
+Upgrade installed tools.
+
+-   **Signature**: `tool_upgrade(package: str = None) -> ToolListResult`
+-   **Description**: Wraps `uv tool upgrade`.
+
+### `tool_list`
+
+List installed tools.
+
+-   **Signature**: `tool_list() -> ToolListResult`
+-   **Description**: Wraps `uv tool list`.
+
+### `tool_uninstall`
+
+Uninstall a tool.
+
+-   **Signature**: `tool_uninstall(package: str) -> ToolListResult`
+-   **Description**: Wraps `uv tool uninstall`.
+
+## Cache Introspection (v1.0.0+)
+
+### `prune_cache`
+
+Prune unreachable cache objects.
+
+-   **Signature**: `prune_cache() -> CacheInfoResult`
+-   **Description**: Wraps `uv cache prune`.
+
+### `cache_dir`
+
+Show the cache directory path.
+
+-   **Signature**: `cache_dir() -> CacheInfoResult`
+-   **Description**: Wraps `uv cache dir`.
+
+### `cache_size`
+
+Show cache disk usage.
+
+-   **Signature**: `cache_size() -> CacheInfoResult`
+-   **Description**: Wraps `uv cache size`.
+
+## Python Management (v1.0.0+)
+
+### `find_python`
+
+Find a Python installation.
+
+-   **Signature**: `find_python(version: str = None) -> PythonListResult`
+-   **Description**: Wraps `uv python find`.
+
+### `python_dir`
+
+Show the Python installation directory.
+
+-   **Signature**: `python_dir() -> CacheInfoResult`
+-   **Description**: Wraps `uv python dir`.
+
+### `upgrade_python_version`
+
+Upgrade a Python installation.
+
+-   **Signature**: `upgrade_python_version(version: str) -> PythonInstallResult`
+-   **Description**: Wraps `uv python upgrade`.
+
+### `uninstall_python_version`
+
+Uninstall a Python version.
+
+-   **Signature**: `uninstall_python_version(version: str) -> PythonInstallResult`
+-   **Description**: Wraps `uv python uninstall`.
+
+## Distribution & Publishing (v1.0.0+)
+
+### `publish_project`
+
+Publish distributions to an index.
+
+-   **Signature**: `publish_project(project_path: str = None, files: list[str] = None, dry_run: bool = False, token: str = None) -> PublishResult`
+-   **Description**: Wraps `uv publish`. Supports dry-run mode.
+
+## Self Management (v1.0.0+)
+
+### `self_update`
+
+Update the uv binary.
+
+-   **Signature**: `self_update() -> SelfUpdateResult`
+-   **Description**: Wraps `uv self update`.
+
+### `self_version`
+
+Display the uv binary version.
+
+-   **Signature**: `self_version() -> SelfUpdateResult`
+-   **Description**: Wraps `uv self version`.
+
 ## Error Handling (v0.7.2+)
 
 Enhanced error reporting with actionable suggestions.

@@ -314,3 +314,127 @@ class SelfHealingDiagnostics(BaseModel):
     recommendations: list[str] = []
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
     error: str | None = None
+
+
+class VenvResult(BaseModel):
+    """Result of virtual environment creation."""
+
+    path: str
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None
+
+
+class ScriptRunResult(BaseModel):
+    """Result of running a script or command via uv run."""
+
+    command: list[str]
+    success: bool
+    stdout: str | None = None
+    stderr: str | None = None
+    return_code: int | None = None
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    error: str | None = None
+
+
+class VersionResult(BaseModel):
+    """Result of reading or updating project version."""
+
+    version: str
+    previous_version: str | None = None
+    project_dir: str
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None
+
+
+class FormatResult(BaseModel):
+    """Result of formatting Python code."""
+
+    project_dir: str
+    success: bool
+    files_formatted: int | None = None
+    check_only: bool = False
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None
+
+
+class PipCompileResult(BaseModel):
+    """Result of compiling requirements.in to requirements.txt."""
+
+    input_file: str
+    output_file: str
+    success: bool
+    line_count: int | None = None
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    content: str | None = None
+    error: str | None = None
+
+
+class PipSyncResult(BaseModel):
+    """Result of syncing environment from requirements.txt."""
+
+    requirements_file: str
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None
+
+
+class PipFreezeResult(BaseModel):
+    """Result of freezing installed packages."""
+
+    success: bool
+    requirements: str | None = None
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    error: str | None = None
+
+
+class ToolListResult(BaseModel):
+    """Result of listing installed uv tools."""
+
+    tools: list[str] = []
+    count: int = 0
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    output: str | None = None
+    message: str | None = None
+    error: str | None = None
+
+
+class CacheInfoResult(BaseModel):
+    """Result of cache introspection (dir, size)."""
+
+    operation: str  # "dir", "size", "prune"
+    path: str | None = None
+    size: str | None = None
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None
+
+
+class PublishResult(BaseModel):
+    """Result of publishing distributions to an index."""
+
+    project_dir: str
+    files: list[str] = []
+    success: bool
+    dry_run: bool = False
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None
+
+
+class SelfUpdateResult(BaseModel):
+    """Result of updating the uv binary."""
+
+    previous_version: str | None = None
+    new_version: str | None = None
+    success: bool
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str | None = None
+    error: str | None = None

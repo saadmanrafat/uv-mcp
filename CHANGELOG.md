@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.0] - 2026-05-16
+
+### The Stop Shop Release — 100% uv CLI Coverage
+
+This release expands UV-MCP from **22 → 46 MCP tools**, covering every command exposed by `uv --help`.
+
+### Added (24 New Tools)
+
+- **Virtual Environment**: `uv_create_venv` (`uv venv`) with `--seed`, `--relocatable`, `--clear`, `--system-site-packages`
+- **Script Execution**: `uv_run_script` (`uv run`) with temporary `--with` dependency injection
+- **Project Lifecycle**: `uv_project_version` (`uv version`), `uv_format_code` (`uv format`)
+- **Pip Compatibility**: `uv_pip_compile`, `uv_pip_sync_requirements`, `uv_pip_freeze`, `uv_pip_install`, `uv_pip_uninstall`
+- **Tool Management**: `uv_tool_install`, `uv_tool_upgrade`, `uv_tool_list`, `uv_tool_uninstall`
+- **Cache Introspection**: `uv_prune_cache`, `uv_cache_dir`, `uv_cache_size`
+- **Python Management**: `uv_find_python`, `uv_python_dir`, `uv_upgrade_python_version`, `uv_uninstall_python_version`
+- **Publishing**: `uv_publish_project` (`uv publish`) with `--dry-run`
+- **Self Management**: `uv_self_update`, `uv_self_version`
+
+### New Pydantic Models
+
+`VenvResult`, `ScriptRunResult`, `VersionResult`, `FormatResult`, `PipCompileResult`, `PipSyncResult`, `PipFreezeResult`, `ToolListResult`, `CacheInfoResult`, `PublishResult`, `SelfUpdateResult`
+
+### Metrics
+- **Total MCP Tools**: 46 (100% of uv CLI surface area)
+- **Breaking Changes**: 0
+- **Test Status**: 138 passed, 1 skipped
+
+---
+
 ## [0.8.0] - 2026-05-16
 
 ### Added

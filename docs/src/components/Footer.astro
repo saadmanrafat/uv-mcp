@@ -1,0 +1,38 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/Footer.astro';
+---
+
+<Default {...Astro.props}>
+  <slot />
+</Default>
+
+<div class="custom-footer">
+  <p>
+    Built with care by
+    <a href="https://github.com/saadmanrafat" target="_blank" rel="noopener noreferrer">
+      Saadman Rafat
+    </a>
+  </p>
+</div>
+
+<style>
+  .custom-footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    text-align: center;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+
+  .custom-footer a {
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .custom-footer a:hover {
+    text-decoration: underline;
+  }
+</style>

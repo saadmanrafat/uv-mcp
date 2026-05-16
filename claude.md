@@ -1,51 +1,38 @@
-# uv-mcp | Rules, Backlog & Release Automation
+# CLAUDE.md | Feature Deficit & Gap Analysis
 
-## Project Overview
-An elegant Model Context Protocol (MCP) server providing autonomous tools for managing the `uv` package manager ecosystem (virtual environments, project sync, dependency tracking, and lockfile diagnostics).
+## Project Status Overview
+The current `uv-mcp` server successfully bridges basic python project operations (`init`, `sync`, `lock`, `build`, `add`, `remove`), basic `uv python` operations, and key `uv pip` inspection tools. However, it completely lacks several of the native, primitive toolsets provided by the `uv` ecosystem.
 
-## Tech Stack
-- **Runtime:** Python 3.12+ managed entirely via `uv`
-- **Libraries:** Pydantic v2, `fastmcp`, SQLModel
-- **Quality Layer:** Strict typing (`mypy --strict`), structured JSON logs
-
-## Architecture Philosophy
-- **Hexagonal Architecture:** Decouple Core Domain logic (dependency processing rules) from Application Adapters (FastMCP tool registration interfaces) and Infrastructure (Shell subprocess controllers).
-- **Determinism:** Every MCP tool input schema must be explicitly derived from a declarative Pydantic model. Never return raw, untyped dictionaries for JSON-RPC payloads.
-
-## Operational Commands
-- Sync environment: `uv sync`
-- Run typecheck: `uv run mypy src/uv_mcp --strict`
-- Run test suite: `uv run pytest`
-- Audit linting: `uv run ruff check .`
-- Check git state: `git status --porcelain`
-
-## Code Style & Conventions
-- **Explicit Types:** Full type annotations required everywhere. Avoid `Any`. Use `Mapping`/`Sequence` instead of mutable types for arguments.
-- **Error Boundaries:** Subprocess execution errors must be caught inside Infrastructure wrappers and converted to standard MCP JSON-RPC error codes (e.g., `-32603` for internal execution faults). Never leak raw Python stack traces into the tool text outputs.
+This document identifies all missing `uv` features absent from the current implementation to guide upcoming feature-parity sprint cycles.
 
 ---
 
-## Core Backlog: Bugs & Feature Implementation
+## Missing Feature Backlog
 
-### 1. Existing Feature Bug Fixes
-- **ANSI Output Pollution:** Intercept all subprocess streams (`stdout`/`stderr`). Enforce clean text responses across the execution proxy layer by explicitly injecting environment mappings (`UV_COLOR=never`, `TERM=dumb`).
-- **Concurrent Lockfile Contention:** Protect mutating shell operations (`uv add`, `uv remove`, `uv sync`) using an asynchronous FIFO gate (`asyncio.Lock()`) registered at the application core router layer.
-- **Path Drift Resolution:** Enforce absolute filesystem resolution. Tool input schemas must normalize incoming paths using `Path.resolve()` and explicitly bind targets via the `--directory` system flag.
+### 1. Ephemeral Run & Tool Management Layer (`uv run` & `uvx` / `uv tool`)
+* **Deficit:** The codebase lacks any implementation wrapper around `uv run` to execute arbitrary shell commands or individual modules inside an environmentally isolated lockfile boundary.
+* **Deficit:** The server lacks support for the `uv tool` ecosystem (`uv tool install`, `uv tool run`, `uv tool list`). Calling agents have no method to fetch, run, or globally handle standalone developer utilities (e.g., `ruff`, `black`, `mypy`) ephemerally outside target workspace setups.
 
-### 2. New Feature Specs
-- **Ephemeral Tool Runner (`uvx` Proxy):** Register an MCP tool named `run_ephemeral_tool(package: str, command: list[str])`. Execute logic using `uvx --from {package} {command[0]} {command[1:]}` under a strict absolute execution path boundary.
-- **Workspace Introspection Engine:** Implement `get_workspace_manifest()`. Use a secure parser to scan the root configurations, pull `[tool.uv.workspace]` definitions, mapping sub-project dependencies into a topological JSON graph payload.
-- **Self-Healing Diagnostics Handler:** Inject a regex monitoring pattern over failing process pipelines. Catch signatures like `ModuleNotFoundError: No module named '...'`, extract the target string identifier, and append a diagnostic payload suggesting the correct correction command (`uv add <package>`).
+### 2. PEP 723 Inline Script Metadata Support
+* **Deficit:** Modern `uv` can directly read and run isolated single-file Python scripts that declare their own embedded dependency blocks via inline comments (PEP 723, e.g., `# /// script\n# dependencies = ["requests"]\n# ///`).
+* **Deficit:** `uv-mcp` enforces a rigid project framework anchored to a structured `pyproject.toml` file layout. Agents cannot pass a standalone file to be parsed, resolved, and run dynamically in an independent clean environment context.
 
----
+### 3. Distribution Registry Publishing (`uv publish`)
+* **Deficit:** While `uv_build_project` exists to assemble source distributions and wheel binaries into local `dist/` directories, the final upstream publishing segment (`uv publish`) is missing.
+* **Deficit:** Agents cannot upload built build configurations to PyPI or alternative private enterprise OCI/PyPI registries directly via the server interface.
 
-## Release & Automation Workflow Rules
-When commanded to tag or release a version, follow this sequence exactly:
-1. **Validation Gate:** Execute `uv run mypy . --strict` and `uv run pytest`. Abort if any error code is non-zero.
-2. **Clean Status Audit:** Run `git status --porcelain`. The directory must be completely clean before continuing.
-3. **Changelog Mutation:** Open `CHANGELOG.md`. Move to the line below the `## [Unreleased]` anchor block and insert a formatted version section: `## [X.Y.Z] - YYYY-MM-DD`. Parse recent commit data to populate subheaders (`### Added`, `### Changed`, `### Fixed`).
-4. **Version Sync:** Access `pyproject.toml` and synchronize the `version` variable string inside the `[project]` configuration block to match the target release.
-5. **Release Commit:** Execute a single commit holding the tracking changes: `git commit -am "chore(release): bump version to X.Y.Z"`.
-6. **Tag and Push Automation:**
-   - Cut an annotated git tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
-   - Push both the tracking branch updates and the annotated tag simultaneously: `git push origin main && git push origin vX.Y.Z`
+### 4. Advanced `uv pip` Quality & Diagnostic Primitives
+* **Deficit (`uv pip compile`):** There is no engine tool mapping to compile legacy requirements structures (`requirements.in`) directly into locked requirement outputs without spinning up or modifying a top-level workspace project model.
+* **Deficit (`uv pip sync`):** The server does not expose a low-level target matching function to overwrite a target virtual environment state to mirror a raw flat dependency list exactly, meaning it lacks automated environment pruning logic.
+* **Deficit (`uv pip check`):** There is no dedicated interface tool exposing environment tracking checks to catch structural dependency depth mismatches or conflicting packages explicitly.
+
+### 5. Configurable Virtual Environment Settings (`uv venv`)
+* **Deficit:** The internal helper `_repair_venv` fires an unconfigured, raw `uv venv` shell subprocess execution.
+* **Deficit:** It misses crucial parameterization extensions native to `uv venv`, including choosing user prompts (`--prompt`), allowing global access configurations (`--system-site-packages`), or deciding whether to explicitly seed core packages into the generated environment directories.
+
+### 6. Granular Cache Tuning & Maintenance (`uv cache`)
+* **Deficit:** Cache control inside `actions.py` maps solely to basic target deletions via `uv cache clean`.
+* **Deficit:** Advanced layout utility tools are entirely unmapped, such as `uv cache prune` (to automatically sweep stale or dangling index data while protecting active environment lock mappings) and `uv cache dir` (to cleanly query the local platform cache storage directory).
+
+### 7. Native Core Updates (`uv self update`)
+* **Deficit:** The server lacks the capability to update its own engine binary lifecycle platform via `uv self update`. It remains completely dependent on external environment adjustments or static parent Docker image tag layers to pull critical execution performance or patch changes.
