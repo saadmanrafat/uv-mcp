@@ -4,9 +4,9 @@
 
 ### The Stop Shop Release — 100% uv CLI Coverage
 
-This release expands UV-MCP from **22 → 46 MCP tools**, covering every command exposed by `uv --help`.
+This release expands UV-MCP from **22 → 45 MCP tools**, covering every command exposed by `uv --help`.
 
-### Added (24 New Tools)
+### Added (23 New Tools)
 
 - **Virtual Environment**: `uv_create_venv` (`uv venv`) with `--seed`, `--relocatable`, `--clear`, `--system-site-packages`
 - **Script Execution**: `uv_run_script` (`uv run`) with temporary `--with` dependency injection
@@ -23,7 +23,7 @@ This release expands UV-MCP from **22 → 46 MCP tools**, covering every command
 `VenvResult`, `ScriptRunResult`, `VersionResult`, `FormatResult`, `PipCompileResult`, `PipSyncResult`, `PipFreezeResult`, `ToolListResult`, `CacheInfoResult`, `PublishResult`, `SelfUpdateResult`
 
 ### Metrics
-- **Total MCP Tools**: 46 (100% of uv CLI surface area)
+- **Total MCP Tools**: 45 (100% of uv CLI surface area)
 - **Breaking Changes**: 0
 - **Test Status**: 138 passed, 1 skipped
 

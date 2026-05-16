@@ -42,7 +42,7 @@ UV-MCP now covers the **entire uv CLI surface area**. Every command from `uv --h
 ### New Models
 - `VenvResult`, `ScriptRunResult`, `VersionResult`, `FormatResult`, `PipCompileResult`, `PipSyncResult`, `PipFreezeResult`, `ToolListResult`, `CacheInfoResult`, `PublishResult`, `SelfUpdateResult`
 
-### Total Tool Count: **46 MCP tools** covering 100% of uv CLI functionality.
+### Total Tool Count: **45 MCP tools** covering 100% of uv CLI functionality.
 
 ---
 

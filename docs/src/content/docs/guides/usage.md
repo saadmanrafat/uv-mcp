@@ -283,6 +283,152 @@ New workflows for packaging and distributing your Python projects.
 - `cache_size`: Shows human-readable cache size.
 - `prune_cache`: Removes unreachable cache entries.
 
+## Workspace Introspection & Self-Healing (v0.8.0+)
+
+### Ephemeral Tool Execution
+
+**Intent**: Run a CLI tool one time without permanently installing it.
+
+> "Run ruff check on this codebase."
+> "Lint with black without installing black globally."
+> "Type-check with mypy as a one-off."
+
+**System Action**:
+- `run_ephemeral_tool`: Invokes `uv tool run` (the `uvx` proxy) for a single execution.
+  - `package`: The PyPI package name (e.g. `"ruff"`, `"black"`, `"mypy"`).
+  - `command`: Arguments passed to the tool (e.g. `["check", "."]`).
+  - `project_path`: Optional working directory.
+  - **Returns**: `EphemeralToolResult` with `stdout`, `stderr`, `return_code`, and `success`.
+
+**When to Use**:
+- You need a formatter or linter once and do not want to pollute the global environment.
+- Running a temporary script that depends on a package you do not wish to install permanently.
+- CI pipelines where you want the exact version specified in the command.
+
+**Example**:
+```bash
+> "Run ruff check ."
+# System: run_ephemeral_tool(package="ruff", command=["check", "."])
+# stdout -> linting results
+# stderr -> errors only if the tool fails
+```
+
+### Monorepo Workspace Manifest
+
+**Intent**: Inspect a multi-package repo managed by `uv` workspaces.
+
+> "Show me workspace members."
+> "What dependencies does the api package have?"
+> "Build a topological graph of this monorepo."
+
+**System Action**:
+- `get_workspace_manifest`: Parses `[tool.uv.workspace]` from the root `pyproject.toml` and recursively reads each member's metadata.
+  - **Returns**: `WorkspaceManifest` containing the root directory, `is_workspace` boolean, and a `members` list. Each member includes `name`, absolute `path`, and `dependencies`.
+
+**When to Use**:
+- You are working inside a monorepo and want to know which packages exist and how they relate.
+- You need a dependency graph for documentation or deployment ordering.
+- You want to identify workspace drift (members listed but missing from disk).
+
+**Example**:
+```bash
+> "Show workspace members."
+# System: get_workspace_manifest(project_path="/home/user/monorepo")
+# -> Members: [{"name": "api", "path": "/.../api", "dependencies": [...]}, ...]
+```
+
+### Self-Healing Diagnostics
+
+**Intent**: Automatically detect and fix a broken environment.
+
+> "My imports are failing, fix the environment."
+> "Why is pandas missing?"
+> "Heal this broken project."
+
+**System Action**:
+- `self_heal_environment`: Runs `uv pip check`, captures `ModuleNotFoundError` signatures with regex, and attempts to recover.
+  - Triggers `uv sync` automatically.
+  - Extracts missing package names and appends recommended `uv add <pkg>` actions.
+  - **Returns**: `SelfHealingDiagnostics` with:
+    - `success`: whether all remediation steps succeeded.
+    - `actions`: list of `HealingAction` objects (`pip_check`, `sync`).
+    - `missing_packages`: extracted package names (e.g. `["pandas", "numpy"]`).
+    - `recommendations`: actionable human-readable suggestions.
+
+**When to Use**:
+- After switching branches where `pyproject.toml` changed.
+- When a teammate's environment is missing dependencies the lockfile expects.
+- Before a demo or deployment where the project must be runnable immediately.
+
+**Example**:
+```bash
+> "Heal the environment."
+# System: self_heal_environment()
+# missing_packages -> ["pandas"]
+# recommendations -> ["Package 'pandas' is missing. Suggested fix: uv add pandas"]
+# actions -> [{"type": "sync", "success": true}]
+```
+
+## Advanced Python Management (v1.0.0+)
+
+### Finding & Inspecting Installations
+
+**Intent**: Locate or inspect Python interpreters managed by `uv`.
+
+> "Where is the Python 3.12 binary installed by uv?"
+> "Show all uv-managed Python installations."
+> "What is the uv Python installation directory?"
+
+**System Actions**:
+- `find_python`: Wraps `uv python find`. Returns `PythonListResult` with version string and absolute path for each match.
+  - Optional `version` filter (e.g. `"3.12"`).
+- `python_dir`: Wraps `uv python dir`. Returns `CacheInfoResult` with the directory path for uv's Python cache.
+
+**When to Use**:
+- You need the exact interpreter path for a CI matrix.
+- You want to know how much disk space uv-managed Pythons consume.
+- Debugging PATH issues where the wrong Python is being picked up.
+
+**Example**:
+```bash
+> "Find Python 3.12."
+# System: find_python(version="3.12")
+# versions -> [{"version": "3.12.4", "path": "/home/user/.local/share/uv/python/cpython-3.12.4-linux-x86_64-gnu/bin/python3.12"}]
+
+> "Show uv Python directory."
+# System: python_dir()
+# path -> /home/user/.local/share/uv/python
+```
+
+### Upgrading & Uninstalling Runtimes
+
+**Intent**: Maintain uv-managed Python interpreters over time.
+
+> "Upgrade my Python 3.12 installation to the latest patch."
+> "Remove Python 3.11 to reclaim disk space."
+
+**System Actions**:
+- `upgrade_python_version`: Wraps `uv python upgrade`. Patches an installed version (e.g. `3.12.3` → `3.12.4`).
+  - **Returns**: `PythonInstallResult` with `success`, `output`, and `error`.
+- `uninstall_python_version`: Wraps `uv python uninstall`. Removes a specific version entirely.
+  - **Returns**: `PythonInstallResult` with operation status.
+
+**When to Use**:
+- You want the latest patch release without reinstalling the entire project.
+- You maintain multiple Python versions for testing and need to rotate them.
+- Disk space is constrained and unused interpreters should be removed.
+
+**Example**:
+```bash
+> "Upgrade Python 3.12 to the latest patch."
+# System: upgrade_python_version(version="3.12")
+# output -> "Updated cpython-3.12.4"
+
+> "Uninstall Python 3.11."
+# System: uninstall_python_version(version="3.11")
+# -> success: true
+```
+
 ## Publishing & Self Management (v1.0.0+)
 
 ### Publishing Packages

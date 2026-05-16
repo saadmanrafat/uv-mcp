@@ -28,22 +28,30 @@ export default defineConfig({
 					tag: 'meta',
 					attrs: {
 						property: 'og:image',
-						content: 'https://saadman.dev/uv-mcp/og-image.svg',
+						content: 'https://saadman.dev/uv-mcp/og-image.png',
 					},
 				},
 				{
 					tag: 'meta',
-					attrs: { property: 'twitter:card', content: 'summary_large_image' },
+					attrs: { name: 'twitter:card', content: 'summary_large_image' },
 				},
 				{
 					tag: 'meta',
-					attrs: { property: 'twitter:creator', content: '@saadmanrafat' },
+					attrs: { name: 'twitter:creator', content: '@saadmanrafat_' },
+				},
+				{
+					tag: 'meta',
+					attrs: { name: 'twitter:title', content: 'UV-MCP — Stop Shop for Python Environment Management' },
+				},
+				{
+					tag: 'meta',
+					attrs: { name: 'twitter:description', content: '45 typed MCP tools covering 100% of the uv CLI surface area. Built by Saadman Rafat.' },
 				},
 				{
 					tag: 'meta',
 					attrs: {
-						property: 'twitter:image',
-						content: 'https://saadman.dev/uv-mcp/og-image.svg',
+						name: 'twitter:image',
+						content: 'https://saadman.dev/uv-mcp/og-image.png',
 					},
 				},
 				{
@@ -51,23 +59,7 @@ export default defineConfig({
 					attrs: { rel: 'canonical', href: 'https://saadman.dev/uv-mcp/' },
 				},
 			],
-			social: [
-				{
-					icon: 'github',
-					href: 'https://github.com/saadmanrafat/uv-mcp',
-					label: 'GitHub',
-				},
-				{
-					icon: 'twitter',
-					href: 'https://twitter.com/saadmanrafat',
-					label: 'Twitter',
-				},
-				{
-					icon: 'linkedin',
-					href: 'https://linkedin.com/in/saadmanrafat',
-					label: 'LinkedIn',
-				},
-			],
+			// Social links intentionally omitted for a minimalist header
 			sidebar: [
 				{
 					label: 'Guides',

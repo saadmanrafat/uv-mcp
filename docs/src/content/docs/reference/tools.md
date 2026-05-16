@@ -180,20 +180,37 @@ Sets the project's Python version.
 
 ### `run_ephemeral_tool`
 
-Runs an ephemeral CLI tool via `uv tool run` without permanently installing it.
+Runs an ephemeral CLI tool via `uv tool run` (`uvx` proxy) without permanently installing it.
 
 -   **Signature**: `run_ephemeral_tool(package: str, command: list[str], project_path: str = None) -> EphemeralToolResult`
--   **Description**: Instantly executes a package command using the `uvx` proxy.
+-   **Description**: Instantly executes a package command using the `uvx` proxy. The tool is downloaded, cached, and executed in a single step. No global `venv` or `bin/` entry is created, and the package does not appear in `uv tool list`.
 -   **Parameters**:
-    -   `package`: Package name on PyPI (e.g., "ruff", "black", "mypy").
-    -   `command`: Arguments passed to the tool (e.g., `["check", "."]`).
-    -   `project_path` (optional): Absolute path to the project directory.
--   **Returns**: `EphemeralToolResult` with `stdout`, `stderr`, `return_code`, and `success`.
+    -   `package` (str): Package name on PyPI (e.g., `"ruff"`, `"black"`, `"mypy"`, `"httpie"`).
+    -   `command` (list[str]): Arguments passed to the tool (e.g., `["check", "."]` or `["-v", "http://example.com"]`).
+    -   `project_path` (str | None): Absolute path to the project directory. The subprocess runs with this as the working directory.
+-   **Returns**: `EphemeralToolResult`:
+    -   `package`: Name of the executed package.
+    -   `command`: The argument list that was passed.
+    -   `stdout`: Standard output from the tool.
+    -   `stderr`: Standard error from the tool.
+    -   `return_code`: Exit code (0 on success, 1 on failure).
+    -   `success`: Boolean indicating whether the command exited successfully.
+    -   `error`: Populated with `stderr` when `success` is `False`.
+-   **When to Use**:
+    - One-off formatting, linting, or type-checking tasks.
+    - CI pipelines where you want the exact version specified in the command.
+    - Temporary scripts that depend on a package you do not wish to install permanently.
+    - Exploring a tool before deciding to install it globally.
 -   **Example**:
     ```python
+    # Lint with ruff without installing it
     result = await run_ephemeral_tool(package="ruff", command=["check", "."])
-    # stdout: linting output
-    # stderr: error messages
+    # result.stdout -> linting diagnostics
+    # result.return_code -> 0 (clean) or non-zero (issues found)
+
+    # Format a file with black
+    result = await run_ephemeral_tool(package="black", command=["--diff", "src/"])
+    # result.stdout -> unified diff of formatting changes
     ```
 
 ### `get_workspace_manifest`
@@ -428,32 +445,93 @@ Show cache disk usage.
 
 ### `find_python`
 
-Find a Python installation.
+Locates Python installations managed by `uv`.
 
 -   **Signature**: `find_python(version: str = None) -> PythonListResult`
--   **Description**: Wraps `uv python find`.
+-   **Description**: Wraps `uv python find`. Searches the uv-managed Python cache for matching interpreters and returns their absolute paths. If `version` is omitted, all managed installations are returned.
+-   **Parameters**:
+    -   `version` (str | None): Version filter (e.g., `"3.12"`, `"3.11"`). Omit to list all.
+-   **Returns**: `PythonListResult` containing a `versions` list of `PythonVersion` objects:
+    -   `version`: The version string (e.g., `"cpython-3.12.4"`).
+    -   `path`: Absolute filesystem path to the interpreter binary.
+    ```
+-   **When to Use**:
+    - You need the exact interpreter path for a CI matrix.
+    - Debugging PATH issues where the wrong Python is being picked up.
+    - Verifying that a required version is installed before pinning it.
+-   **Example**:
+    ```python
+    result = await find_python(version="3.12")
+    # result.versions -> [
+    #   {"version": "cpython-3.12.4", "path": "/home/user/.local/share/uv/python/cpython-3.12.4-linux-x86_64-gnu/bin/python3.12"}
+    # ]
+    ```
 
 ### `python_dir`
 
-Show the Python installation directory.
+Shows the root directory where uv stores managed Python interpreters.
 
 -   **Signature**: `python_dir() -> CacheInfoResult`
--   **Description**: Wraps `uv python dir`.
-
+-   **Description**: Wraps `uv python dir`. Returns the absolute path to the directory containing all downloaded and installed Python runtimes. This is useful for disk-space audits and debugging path issues.
+-   **Returns**: `CacheInfoResult`:
+    -   `operation`: `"dir"`
+    -   `path`: Absolute directory path.
+    -   `success`: Boolean indicating whether the query succeeded.
+    -   `error`: Error message if the query failed.
+-   **When to Use**:
+    - You want to know how much disk space uv-managed Pythons consume.
+    - You are provisioning CI runners and need to pre-warm a specific Python cache directory.
+-   **Example**:
+    ```python
+    result = await python_dir()
+    # result.path -> /home/user/.local/share/uv/python
+    ```
 ### `upgrade_python_version`
 
-Upgrade a Python installation.
+Upgrades a uv-managed Python installation to the latest available patch for the given minor version.
 
 -   **Signature**: `upgrade_python_version(version: str) -> PythonInstallResult`
--   **Description**: Wraps `uv python upgrade`.
+-   **Description**: Wraps `uv python upgrade`. For example, if you have `3.12.3` installed and `3.12.4` is available, calling `upgrade_python_version("3.12")` updates the interpreter in-place without breaking existing virtual environments because `uv` tracks interpreters by full version string.
+-   **Parameters**:
+    -   `version` (str): The version specifier to upgrade (e.g., `"3.12"`, `"3.11"`, `"pypy@3.10"`).
+-   **Returns**: `PythonInstallResult`:
+    -   `version`: The version string that was requested.
+    -   `success`: Whether the upgrade completed successfully.
+    -   `output`: Diagnostic output from `uv python upgrade` (e.g., `"Updated cpython-3.12.4"`).
+    -   `error`: Error message if the upgrade failed.
+-   **When to Use**:
+    - A new patch release ships security fixes and you want to update without reinstalling the entire project.
+    - CI pipelines need the latest patch before running tests.
+    - You maintain multiple Python versions and want to rotate them to the latest patch.
+-   **Example**:
+    ```python
+    result = await upgrade_python_version(version="3.12")
+    # result.output -> "Updated cpython-3.12.4"
+    # result.success -> True
+    ```
 
 ### `uninstall_python_version`
 
-Uninstall a Python version.
+Removes a uv-managed Python interpreter to reclaim disk space.
 
 -   **Signature**: `uninstall_python_version(version: str) -> PythonInstallResult`
--   **Description**: Wraps `uv python uninstall`.
-
+-   **Description**: Wraps `uv python uninstall`. Deletes the interpreter and its cached artifacts from the uv-managed Python directory. Warning: any virtual environments created with this exact interpreter will become invalid.
+-   **Parameters**:
+    -   `version` (str): The version string to uninstall (e.g., `"3.11"`, `"pypy@3.10"`).
+-   **Returns**: `PythonInstallResult`:
+    -   `version`: The version string that was requested.
+    -   `success`: Whether the uninstallation completed successfully.
+    -   `output`: Diagnostic output from `uv python uninstall`.
+    -   `error`: Error message if the operation failed.
+-   **When to Use**:
+    - Disk space is constrained and an old Python version is no longer needed.
+    - You rotated CI runner images and want to clean up unused versions.
+    - A broken Python installation needs to be removed before reinstallation.
+-   **Example**:
+    ```python
+    result = await uninstall_python_version(version="3.11")
+    # result.success -> True
+    ```
 ## Distribution & Publishing (v1.0.0+)
 
 ### `publish_project`
