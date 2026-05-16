@@ -5,6 +5,28 @@ description: Release history and version updates for UV-MCP.
 
 # Changelog
 
+## [0.8.0] - 2026-05-16
+
+### Added
+- **Ephemeral Tool Runner (`uvx` proxy)**: `uv_run_ephemeral_tool(package, command)` executes ephemeral tools via `uv tool run --from <pkg>` with typed `EphemeralToolResult`.
+- **Workspace Introspection Engine**: `uv_get_workspace_manifest()` parses `[tool.uv.workspace]` members from `pyproject.toml` and returns a `WorkspaceManifest` with topological dependency graph.
+- **Self-Healing Diagnostics Handler**: `uv_self_heal_environment()` captures `ModuleNotFoundError` signatures via regex, triggers `uv sync`, and yields per-package `uv add <pkg>` recommendations in a `SelfHealingDiagnostics` payload.
+- **ANSI-Free Subprocess Environment**: All `uv` invocations now unconditionally inject `UV_COLOR=never` and `TERM=dumb` to guarantee clean, parseable streams.
+- **Concurrency Lockfile Gate**: `asyncio.Lock()` serializes mutating commands (`add`, `remove`, `sync`, `lock`) to prevent `uv.lock` deadlocks under concurrent MCP tool calls.
+- **Absolute Path Resolution**: Every `project_path` input is normalized with `Path.resolve()` before being passed to `uv --directory`.
+- **New Pydantic Models**: `EphemeralToolResult`, `WorkspaceManifest`, `WorkspaceMember`, `SelfHealingDiagnostics`, `HealingAction`.
+
+### Fixed
+- **Docker Health Check** updated to use `uv_mcp.utils` (previously referenced non-existent `uv_mcp.uv_utils`).
+- **Docker image label** bumped to `0.8.0`.
+- **Type safety**: `errors.py` and `server.py` tightened for `--strict` compliance.
+
+### Changed
+- `ProjectTools` refactored from raw `str` returns to strictly typed Pydantic models (`ProjectInitResult`, `SyncResult`, `ExportResult`).
+- `docker-compose.yml` health-check command aligned with new `utils` module.
+
+---
+
 ## [0.7.2] - 2026-02-07
 
 ### Added
@@ -210,7 +232,9 @@ Added 6 comprehensive documentation files:
 
 ## Version Comparison Links
 
-- [Unreleased](https://github.com/saadmanrafat/uv-mcp/compare/v0.6.4...HEAD)
+- [Unreleased](https://github.com/saadmanrafat/uv-mcp/compare/v0.8.0...HEAD)
+- [0.8.0](https://github.com/saadmanrafat/uv-mcp/compare/v0.7.2...v0.8.0)
+- [0.7.2](https://github.com/saadmanrafat/uv-mcp/compare/v0.6.4...v0.7.2)
 - [0.6.4](https://github.com/saadmanrafat/uv-mcp/compare/v0.6.1...v0.6.4)
 - [0.6.1](https://github.com/saadmanrafat/uv-mcp/compare/v0.5.3...v0.6.1)
 - [0.5.3](https://github.com/saadmanrafat/uv-mcp/compare/v0.5.2...v0.5.3)

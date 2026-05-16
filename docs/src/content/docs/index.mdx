@@ -41,11 +41,11 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	</Card>
 </CardGrid>
 
-## What's New in v0.7.2
+## What's New in v0.8.0
 
-- **Configuration Centralization**: New `config.py` for timeouts, limits, and retry policies
-- **Concurrency Control**: Prevents resource exhaustion with `MAX_CONCURRENT_COMMANDS`
-- **Output Management**: Intelligent truncation for large dependency trees and logs
-- **Core Robustness**: Fixed zombie processes and improved validation logic
-- **Enhanced Docs**: Comprehensive docstrings and examples for all actions
-- **Bug Fixes**: 19+ fixes from code review including critical stability improvements
+- **Ephemeral Tool Runner**: Run any CLI tool via `uv tool run` (`uvx`) on-demand without permanent installation
+- **Workspace Introspection**: Explore monorepo workspaces defined in `pyproject.toml` with full dependency graphs
+- **Self-Healing Diagnostics**: Automatically detect and fix `ModuleNotFoundError` with targeted `uv add` suggestions
+- **ANSI-Free Streams**: Guaranteed clean subprocess output with `UV_COLOR=never` and `TERM=dumb`
+- **Concurrency Lockfile Protection**: Prevents `uv.lock` corruption during concurrent tool calls via `asyncio.Lock()`
+- **Absolute Path Resolution**: All project paths normalized to filesystem roots before passing to `uv --directory`

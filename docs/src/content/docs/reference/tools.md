@@ -176,6 +176,61 @@ Sets the project's Python version.
     -   `project_path` (optional): Path to project root.
 -   **Returns**: Success status with PythonPinResult.
 
+## Workspace & Introspection (v0.8.0+)
+
+### `run_ephemeral_tool`
+
+Runs an ephemeral CLI tool via `uv tool run` without permanently installing it.
+
+-   **Signature**: `run_ephemeral_tool(package: str, command: list[str], project_path: str = None) -> EphemeralToolResult`
+-   **Description**: Instantly executes a package command using the `uvx` proxy.
+-   **Parameters**:
+    -   `package`: Package name on PyPI (e.g., "ruff", "black", "mypy").
+    -   `command`: Arguments passed to the tool (e.g., `["check", "."]`).
+    -   `project_path` (optional): Absolute path to the project directory.
+-   **Returns**: `EphemeralToolResult` with `stdout`, `stderr`, `return_code`, and `success`.
+-   **Example**:
+    ```python
+    result = await run_ephemeral_tool(package="ruff", command=["check", "."])
+    # stdout: linting output
+    # stderr: error messages
+    ```
+
+### `get_workspace_manifest`
+
+Introspects a monorepo's workspace tree defined in `pyproject.toml`.
+
+-   **Signature**: `get_workspace_manifest(project_path: str = None) -> WorkspaceManifest`
+-   **Description**: Parses `[tool.uv.workspace]` members and recursively collects each sub-project's metadata (name, absolute path, dependencies) into a topological JSON graph.
+-   **Parameters**:
+    -   `project_path` (optional): Root directory of the workspace.
+-   **Returns**: `WorkspaceManifest` with `root` path, `is_workspace` flag, and `members` list (each containing `name`, `path`, and `dependencies`).
+-   **Example**:**
+    ```python
+    result = await get_workspace_manifest(project_path="/home/user/monorepo")
+    # result.members -> [{"name": "api", "path": "/home/user/monorepo/api", "dependencies": [...]}, ...]
+    ```
+
+### `self_heal_environment`
+
+Self-healing diagnostics that monitors `uv pip check` output for `ModuleNotFoundError` signatures.
+
+-   **Signature**: `self_heal_environment(project_path: str = None) -> SelfHealingDiagnostics`
+-   **Description**: Runs a lightweight dependency check, regex-captures missing packages, automatically triggers `uv sync`, and appends targeted `uv add` commands as actionable recommendations.
+-   **Parameters**:
+    -   `project_path` (optional): Project directory to analyze.
+-   **Returns**: `SelfHealingDiagnostics` payload:
+    -   `success`: Whether all actions succeeded.
+    -   `actions`: List of `HealingAction` objects (`pip_check`, `sync`).
+    -   `missing_packages`: Extracted package names (`list[str]`).
+    -   `recommendations`: Actionable suggestions (e.g., "Package 'pandas' is missing. Suggested fix: uv add pandas").
+-   **Example**:**
+    ```python
+    result = await self_heal_environment()
+    # result.missing_packages -> ["pandas", "numpy"]
+    # result.recommendations -> ["Package 'pandas' is missing. Suggested fix: uv add pandas", ...]
+    ```
+
 ## Build & Distribution (v0.7.2+)
 
 New tools for building and distributing Python packages.
