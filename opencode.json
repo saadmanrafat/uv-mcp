@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "uv-mcp": {
+      "type": "local",
+      "command": ["uv", "run", "uv-mcp"],
+      "enabled": true,
+      "environment": {
+        "UV_COLOR": "never",
+        "TERM": "dumb"
+      }
+    }
+  }
+}

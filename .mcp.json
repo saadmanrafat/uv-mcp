@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "uv-mcp": {
+      "command": "uv",
+      "args": ["run", "uv-mcp"],
+      "env": {
+        "UV_COLOR": "never",
+        "TERM": "dumb"
+      }
+    }
+  }
+}

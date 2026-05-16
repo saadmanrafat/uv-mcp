@@ -13,7 +13,7 @@ export default defineConfig({
 				Footer: './src/components/Footer.astro',
 			},
 			description:
-				'UV-MCP is a Model Context Protocol (MCP) server that exposes 46 typed tools for uv, the extremely fast Python package manager. Built by Saadman Rafat (saadman.dev).',
+				'UV-MCP is a Model Context Protocol (MCP) server that exposes 45 typed tools for uv, the extremely fast Python package manager. Built by Saadman Rafat (saadman.dev).'
 			favicon: '/favicon.svg',
 			head: [
 				{

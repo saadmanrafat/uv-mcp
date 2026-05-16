@@ -20,7 +20,7 @@ Modern Python development involves complex environment management—virtual envi
 ### Model Context Protocol (MCP)
 The **Model Context Protocol** is the standard interface that allows AI models to execute code and retrieve context from local systems.
 -   **Server**: UV-MCP runs locally, exposing discrete **Tools** (e.g., `add_dependency`, `repair_environment`) to the client.
--   **Client**: The AI interface (e.g., Gemini CLI, Claude Desktop) consumes these tools to fulfill user requests.
+-   **Client**: The AI interface (Claude Code, OpenCode, Codex CLI, Gemini CLI, Claude Desktop) consumes these tools to fulfill user requests.
 
 ### The `uv` Engine
 UV-MCP is built on top of **uv**, an extremely fast Python package installer and resolver. It does not reinvent package management; rather, it exposes `uv`'s capabilities to the AI context layer.

@@ -1,0 +1,8 @@
+[mcp_servers.uv-mcp]
+command = "uv"
+args    = ["run", "uv-mcp"]
+enabled = true
+
+[mcp_servers.uv-mcp.env]
+UV_COLOR = "never"
+TERM     = "dumb"
