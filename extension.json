@@ -1,0 +1,62 @@
+{
+  "name": "uv-mcp",
+  "version": "0.8.0",
+  "description": "Bridge modern, reproducible Python environments with Gemini CLI agents. Diagnose, self-heal, and manage uv workflows.",
+  "contextFileName": "claude.md",
+  "icon": "ext/uv_mcp_logo.png",
+  "keywords": [
+    "python",
+    "uv",
+    "pip",
+    "devops",
+    "agent",
+    "automation",
+    "mcp",
+    "self-healing",
+    "workspace"
+  ],
+  "author": "Saadman Rafat",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saadmanrafat/uv-mcp"
+  },
+  "settings": [
+    {
+      "name": "Default Project Workspace Path",
+      "description": "Absolute host directory to mount for Python environment evaluations.",
+      "envVar": "UV_MCP_WORKSPACE_ROOT",
+      "sensitive": false
+    },
+    {
+      "name": "Forced Text Interception",
+      "description": "Silence ANSI color tokens and terminal control sequences in all subprocess output.",
+      "envVar": "UV_COLOR",
+      "sensitive": false
+    },
+    {
+      "name": "Dumb Terminal Mode",
+      "description": "Strip terminal escape sequences by forcing TERM=dumb on spawned uv processes.",
+      "envVar": "TERM",
+      "sensitive": false
+    }
+  ],
+  "mcpServers": {
+    "uv-mcp-core": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--env",
+        "UV_COLOR=never",
+        "--env",
+        "TERM=dumb",
+        "python",
+        "-m",
+        "uv_mcp.server"
+      ],
+      "cwd": "${extensionPath}",
+      "env": {
+        "PATH": "${PATH}:${HOME}/.local/bin:${HOME}/.cargo/bin"
+      }
+    }
+  }
+}

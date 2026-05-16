@@ -23,7 +23,6 @@ description: Release history and version updates for UV-MCP.
 
 ### Changed
 - `ProjectTools` refactored from raw `str` returns to strictly typed Pydantic models (`ProjectInitResult`, `SyncResult`, `ExportResult`).
-- `docker-compose.yml` health-check command aligned with new `utils` module.
 
 ---
 
