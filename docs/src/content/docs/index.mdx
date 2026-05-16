@@ -17,13 +17,26 @@ hero:
 
 ## What is UV-MCP?
 
-UV-MCP is a **Model Context Protocol (MCP)** server that maps natural language to typed `uv` commands. It gives AI assistants — Gemini, Claude, OpenCode, and any MCP client — the ability to manage Python environments, dependencies, and project lifecycles without memorizing 45 different CLI flags.
+UV-MCP is a **Model Context Protocol (MCP)** server that maps natural language to typed `uv` commands. It gives AI assistants — Claude Code, OpenCode, Codex, Gemini CLI, and any MCP client — the ability to manage Python environments, dependencies, and project lifecycles without memorizing 45 different CLI flags.
 
 Instead of typing, you say:
 
 > *"Create a virtual environment with seed packages, install requests, and run my script."*
 
 UV-MCP handles the rest.
+
+## Works With
+
+Drop the right file in your project root and every supported client picks it up automatically.
+
+| Client | Config file | One-liner |
+|---|---|---|
+| **Claude Code** | `.mcp.json` | `claude mcp add uv-mcp -- uv run uv-mcp` |
+| **OpenCode** | `opencode.json` | add `"mcp"` block — [full config](/uv-mcp/guides/installation/) |
+| **Codex CLI** | `.codex/config.toml` | `codex mcp add uv-mcp -- uv run uv-mcp` |
+| **Gemini CLI** | `gemini-extension.json` | `gemini extensions install https://github.com/saadmanrafat/uv-mcp` |
+
+See the [Installation guide](/uv-mcp/guides/installation/) for the complete config for each client.
 
 ## Key Features
 
