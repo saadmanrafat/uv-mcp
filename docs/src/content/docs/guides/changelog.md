@@ -272,7 +272,8 @@ Added 6 comprehensive documentation files:
 
 ## Version Comparison Links
 
-- [Unreleased](https://github.com/saadmanrafat/uv-mcp/compare/v0.8.0...HEAD)
+- [Unreleased](https://github.com/saadmanrafat/uv-mcp/compare/v1.0.0...HEAD)
+- [1.0.0](https://github.com/saadmanrafat/uv-mcp/compare/v0.8.0...v1.0.0)
 - [0.8.0](https://github.com/saadmanrafat/uv-mcp/compare/v0.7.2...v0.8.0)
 - [0.7.2](https://github.com/saadmanrafat/uv-mcp/compare/v0.6.4...v0.7.2)
 - [0.6.4](https://github.com/saadmanrafat/uv-mcp/compare/v0.6.1...v0.6.4)
