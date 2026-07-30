@@ -1,6 +1,7 @@
 """UV-Agent MCP Server - Main server implementation."""
 
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -60,10 +61,38 @@ from .models import (
     WorkspaceMember,
 )
 from .tools import ProjectTools
+from .utils import assert_within_workspace, resolve_project_path, validate_package_name
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uv-mcp")
+
+
+def _get_allowed_tools() -> frozenset[str] | None:
+    """Return the normalised allowlist from UV_MCP_ALLOWED_TOOLS, or None if unset."""
+    raw = os.environ.get("UV_MCP_ALLOWED_TOOLS", "").strip()
+    if not raw:
+        return None
+    return frozenset(name.strip().lower() for name in raw.split(",") if name.strip())
+
+
+def _check_package_allowed(package: str) -> str | None:
+    """
+    Validate package name format and enforce UV_MCP_ALLOWED_TOOLS if set.
+
+    Returns None if the package is permitted, or an error message if not.
+    """
+    err = validate_package_name(package)
+    if err:
+        return err
+    allowed = _get_allowed_tools()
+    if allowed is not None:
+        import re as _re
+        base_name = _re.split(r'[\[><=!~]', package)[0].lower()
+        if base_name not in allowed:
+            return f"Package '{base_name}' is not in the configured allowed tools list (UV_MCP_ALLOWED_TOOLS)"
+    return None
+
 
 # Initialize FastMCP server
 mcp = FastMCP("uv-mcp")
@@ -113,7 +142,7 @@ async def uv_diagnose_environment(project_path: str | None = None) -> Diagnostic
     Returns:
         DiagnosticReport with comprehensive diagnostic report
     """
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
 
     if not project_dir.exists():
         return DiagnosticReport(
@@ -391,7 +420,7 @@ async def uv_lock_project(project_path: str | None = None) -> SyncResult:
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -435,7 +464,7 @@ async def uv_build_project(
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -450,7 +479,9 @@ async def uv_build_project(
     # If both are True (default), build both formats
 
     if output_dir:
-        cmd.extend(["--out-dir", output_dir])
+        resolved_output_dir = (project_dir / output_dir).resolve()
+        assert_within_workspace(resolved_output_dir)
+        cmd.extend(["--out-dir", str(resolved_output_dir)])
 
     logger.info(f"Building project in {project_dir}")
     success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
@@ -458,13 +489,13 @@ async def uv_build_project(
     # Parse output to find artifacts
     artifacts: list[str] = []
     if success:
-        dist_dir = Path(output_dir) if output_dir else project_dir / "dist"
+        dist_dir = (project_dir / output_dir).resolve() if output_dir else project_dir / "dist"
         if dist_dir.exists():
             artifacts = [str(f.name) for f in dist_dir.iterdir() if f.is_file()]
 
     return BuildResult(
         project_dir=str(project_dir),
-        output_dir=str(output_dir) if output_dir else str(project_dir / "dist"),
+        output_dir=str((project_dir / output_dir).resolve()) if output_dir else str(project_dir / "dist"),
         success=success,
         artifacts=artifacts,
         message="Build completed successfully" if success else "Build failed",
@@ -489,10 +520,20 @@ async def uv_run_ephemeral_tool(
     Returns:
         EphemeralToolResult with stdout, stderr, and exit code.
     """
-    from pathlib import Path
     from .utils import run_uv_command
 
-    cwd = Path(project_path).resolve() if project_path else None
+    # Validate package name and enforce allowlist
+    err = _check_package_allowed(package)
+    if err:
+        return EphemeralToolResult(
+            package=package,
+            command=command,
+            success=False,
+            error=err,
+            return_code=1,
+        )
+
+    cwd = resolve_project_path(project_path) if project_path else None
 
     args = ["tool", "run", "--from", package, *command]
     success, stdout, stderr = await run_uv_command(args, cwd=cwd)
@@ -524,7 +565,7 @@ async def uv_get_workspace_manifest(
     from pathlib import Path
     from .utils import find_uv_project_root
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -737,7 +778,7 @@ async def uv_create_venv(
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -783,7 +824,19 @@ async def uv_run_script(
     from pathlib import Path
     from .utils import run_uv_command
 
-    project_dir = Path(project_path).resolve() if project_path else None
+    # Validate each with_packages entry
+    if with_packages:
+        for pkg in with_packages:
+            err = validate_package_name(pkg)
+            if err:
+                return ScriptRunResult(
+                    command=command,
+                    success=False,
+                    error=f"Invalid package in with_packages '{pkg}': {err}",
+                    return_code=1,
+                )
+
+    project_dir = resolve_project_path(project_path) if project_path else None
 
     cmd: list[str] = ["run"]
     if with_packages:
@@ -825,7 +878,7 @@ async def uv_project_version(
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -877,7 +930,7 @@ async def uv_format_code(
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root
@@ -919,15 +972,20 @@ async def uv_pip_compile(
     from pathlib import Path
     from .utils import run_uv_command
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
 
-    cmd = ["pip", "compile", input_file, "--output-file", output_file]
+    resolved_input = (project_dir / input_file).resolve()
+    assert_within_workspace(resolved_input)
+    resolved_output = (project_dir / output_file).resolve()
+    assert_within_workspace(resolved_output)
+
+    cmd = ["pip", "compile", str(resolved_input), "--output-file", str(resolved_output)]
     success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
 
     content = None
     line_count = None
     if success:
-        out_path = project_dir / output_file
+        out_path = resolved_output
         if out_path.exists():
             content = out_path.read_text()
             line_count = len(content.splitlines())
@@ -960,7 +1018,7 @@ async def uv_pip_sync_requirements(
     from pathlib import Path
     from .utils import run_uv_command
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
 
     cmd = ["pip", "sync", requirements_file]
     success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
@@ -989,7 +1047,7 @@ async def uv_pip_freeze(
     from pathlib import Path
     from .utils import run_uv_command
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
 
     success, stdout, stderr = await run_uv_command(["pip", "freeze"], cwd=project_dir)
 
@@ -1018,7 +1076,7 @@ async def uv_pip_install(
     from pathlib import Path
     from .utils import run_uv_command
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
 
     cmd = ["pip", "install", *packages]
     success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
@@ -1050,7 +1108,7 @@ async def uv_pip_uninstall(
     from pathlib import Path
     from .utils import run_uv_command
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
 
     cmd = ["pip", "uninstall", "-y", *packages]
     success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
@@ -1078,6 +1136,15 @@ async def uv_tool_install(
         ToolListResult with installation status.
     """
     from .utils import run_uv_command
+
+    err = _check_package_allowed(package)
+    if err:
+        return ToolListResult(
+            tools=[],
+            count=0,
+            success=False,
+            error=err,
+        )
 
     success, stdout, stderr = await run_uv_command(["tool", "install", package])
 
@@ -1107,6 +1174,12 @@ async def uv_tool_upgrade(
 
     cmd = ["tool", "upgrade"]
     if package:
+        err = _check_package_allowed(package)
+        if err:
+            return ToolListResult(
+                success=False,
+                error=err,
+            )
         cmd.append(package)
 
     success, stdout, stderr = await run_uv_command(cmd)
@@ -1160,6 +1233,15 @@ async def uv_tool_uninstall(
         ToolListResult with uninstall status.
     """
     from .utils import run_uv_command
+
+    err = validate_package_name(package)
+    if err:
+        return ToolListResult(
+            tools=[],
+            count=0,
+            success=False,
+            error=err,
+        )
 
     success, stdout, stderr = await run_uv_command(["tool", "uninstall", package])
 
@@ -1363,7 +1445,7 @@ async def uv_publish_project(
     from pathlib import Path
     from .utils import run_uv_command, find_uv_project_root
 
-    project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+    project_dir = resolve_project_path(project_path)
     root = find_uv_project_root(project_dir)
     if root:
         project_dir = root

@@ -227,7 +227,7 @@ class TestFindUvProjectRoot:
     async def test_finds_root_in_current_dir(self, temp_project_with_pyproject):
         """Test finding project root in current directory."""
         root = find_uv_project_root(temp_project_with_pyproject)
-        assert root == temp_project_with_pyproject
+        assert root == temp_project_with_pyproject.resolve()
 
     @pytest.mark.asyncio
     async def test_finds_root_from_subdirectory(self, temp_project_with_pyproject):
@@ -235,7 +235,7 @@ class TestFindUvProjectRoot:
         subdir = temp_project_with_pyproject / "src" / "package"
         subdir.mkdir(parents=True)
         root = find_uv_project_root(subdir)
-        assert root == temp_project_with_pyproject
+        assert root == temp_project_with_pyproject.resolve()
 
     @pytest.mark.asyncio
     async def test_returns_none_for_empty_dir(self, temp_project_dir):
@@ -496,7 +496,7 @@ class TestMCPToolFunctions:
             deep_path = temp_project_with_pyproject / "a" / "b" / "c" / "d" / "e"
             deep_path.mkdir(parents=True)
             root = find_uv_project_root(deep_path)
-            assert root == temp_project_with_pyproject
+            assert root == temp_project_with_pyproject.resolve()
 
 
 if __name__ == "__main__":

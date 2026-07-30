@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Security
+- **Workspace root enforcement**: All `project_path` arguments are now validated against `UV_MCP_WORKSPACE_ROOT` (when set) via new `resolve_project_path()` and `assert_within_workspace()` helpers in `utils.py`. Paths that resolve outside the configured root are rejected before any subprocess is spawned.
+- **Output path boundary checks**: `uv_build_project` (`output_dir`), `uv_export_requirements` (`output_file`), and `uv_pip_compile` (`input_file`, `output_file`) now resolve output paths relative to the project directory and validate them against the workspace root, preventing arbitrary file writes.
+- **Export format allowlist**: `export_requirements` now rejects unknown `file_format` values; only `requirements-txt` and `pylock` are accepted.
+- **Package name validation**: A shared `validate_package_name()` function (centralised in `utils.py`) rejects malformed package names across `uv_run_ephemeral_tool`, `uv_tool_install`, `uv_tool_upgrade`, `uv_tool_uninstall`, and `with_packages` in `uv_run_script`.
+- **Tool allowlist**: `UV_MCP_ALLOWED_TOOLS` environment variable (comma-separated) restricts which packages may be run or installed via `uv_run_ephemeral_tool`, `uv_tool_install`, and `uv_tool_upgrade`.
+- **Project name validation**: `uv_initialize_project` now rejects names containing path separators or `..` traversal sequences, and validates `python_version` format before any filesystem operation.
+
+### Added
+- VS Code (GitHub Copilot) and Cursor client configuration instructions in installation docs, including step-by-step new-user setup and per-project one-liner commands.
+- `UV_MCP_ALLOWED_TOOLS` declared as a configurable setting in `gemini-extension.json`.
+- Security configuration section in `docs/guides/installation.md` documenting both `UV_MCP_WORKSPACE_ROOT` and `UV_MCP_ALLOWED_TOOLS`.
+
+### Fixed
+- Three pre-existing test failures on macOS caused by `/var` → `/private/var` symlink resolution; assertions now compare against `.resolve()` output consistently.
+
+---
+
 ## [1.0.0] - 2026-05-16
 
 ### The Stop Shop Release — 100% uv CLI Coverage

@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -329,6 +330,52 @@ def find_uv_project_root(start_dir: Path | None = None) -> Path | None:
     return None
 
 
+def _get_workspace_root() -> Path | None:
+    """Return the resolved UV_MCP_WORKSPACE_ROOT, or None if not set."""
+    raw = os.environ.get("UV_MCP_WORKSPACE_ROOT")
+    if not raw:
+        return None
+    return Path(raw).resolve()
+
+
+def assert_within_workspace(path: Path) -> None:
+    """
+    Raise ProjectNotFoundError if *path* is outside UV_MCP_WORKSPACE_ROOT.
+
+    Does nothing when UV_MCP_WORKSPACE_ROOT is not set.
+    """
+    root = _get_workspace_root()
+    if root is None:
+        return
+    try:
+        path.relative_to(root)
+    except ValueError:
+        raise ProjectNotFoundError(
+            "Path is outside the allowed workspace root"
+        )
+
+
+def resolve_project_path(path: str | None) -> Path:
+    """
+    Resolve *path* to an absolute Path and enforce the workspace root boundary.
+
+    Unlike validate_project_path, does NOT require the directory to exist
+    (suitable for operations that create a new project or output directory).
+
+    Args:
+        path: Path string or None (defaults to cwd).
+
+    Returns:
+        Absolute, resolved Path.
+
+    Raises:
+        ProjectNotFoundError: If the resolved path is outside UV_MCP_WORKSPACE_ROOT.
+    """
+    resolved = Path(path).resolve() if path else Path.cwd().resolve()
+    assert_within_workspace(resolved)
+    return resolved
+
+
 def validate_project_path(path: str | None) -> Path:
     """
     Validate project path and return an absolute, resolved Path object.
@@ -340,9 +387,38 @@ def validate_project_path(path: str | None) -> Path:
         Absolute Path object pointing to project directory
 
     Raises:
-        ProjectNotFoundError: If directory does not exist
+        ProjectNotFoundError: If directory does not exist or is outside the workspace root.
     """
-    project_dir = Path(path).resolve() if path else Path.cwd().resolve()
+    project_dir = resolve_project_path(path)
     if not project_dir.exists():
         raise ProjectNotFoundError(f"Project directory does not exist: {path}")
     return project_dir
+
+
+# ---------------------------------------------------------------------------
+# Package name validation
+# ---------------------------------------------------------------------------
+
+# Valid PyPI package name with optional extras and version specifier.
+_PACKAGE_NAME_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*"
+    r"(?:\[[A-Za-z0-9,\s._-]+\])?"
+    r"(?:[><=!~]{1,2}[A-Za-z0-9.*+!-]+(?:,[><=!~]{1,2}[A-Za-z0-9.*+!-]+)*)?$"
+)
+_PACKAGE_NAME_FORBIDDEN = frozenset("\n\r;|`$")
+
+
+def validate_package_name(name: str) -> str | None:
+    """
+    Validate a PyPI package name (with optional extras / version specifier).
+
+    Returns:
+        None if the name is valid, or an error message string if invalid.
+    """
+    if not name:
+        return "Package name cannot be empty"
+    if any(c in name for c in _PACKAGE_NAME_FORBIDDEN):
+        return "Package name contains forbidden characters"
+    if not _PACKAGE_NAME_RE.match(name):
+        return "Invalid package name format"
+    return None

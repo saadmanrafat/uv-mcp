@@ -23,8 +23,14 @@
   "settings": [
     {
       "name": "Default Project Workspace Path",
-      "description": "Absolute host directory to mount for Python environment evaluations.",
+      "description": "Absolute host directory to mount for Python environment evaluations. All project_path arguments are validated against this root — paths outside it are rejected.",
       "envVar": "UV_MCP_WORKSPACE_ROOT",
+      "sensitive": false
+    },
+    {
+      "name": "Allowed Tools Allowlist",
+      "description": "Comma-separated list of PyPI package names that may be run or installed (e.g. ruff,black,mypy). When set, uv_run_ephemeral_tool, uv_tool_install, and uv_tool_upgrade reject any package not in this list.",
+      "envVar": "UV_MCP_ALLOWED_TOOLS",
       "sensitive": false
     },
     {
