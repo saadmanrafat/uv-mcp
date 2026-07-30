@@ -1,8 +1,16 @@
 import logging
+import re
 from pathlib import Path
 
 from .models import ProjectInitResult, SyncResult, ExportResult
-from .utils import run_uv_command
+from .utils import run_uv_command, resolve_project_path, assert_within_workspace
+
+# Valid project/package name: starts with alphanumeric, allows hyphens/underscores/dots.
+# Explicitly disallows path separators and the '..' traversal sequence.
+_PROJECT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+# Valid Python version string: e.g. 3.12, 3.12.0, pypy@3.10, cpython-3.12.0
+_PYTHON_VERSION_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._@+\-]*$")
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +37,34 @@ class ProjectTools:
         Returns:
             ProjectInitResult describing the result of the operation.
         """
-        base_path: Path = Path(path).resolve() if path else Path.cwd().resolve()
+        base_path: Path = resolve_project_path(path)
+
+        # Validate name: must be a simple identifier with no path components
+        if not name or not _PROJECT_NAME_RE.match(name) or ".." in name:
+            return ProjectInitResult(
+                project_name=name,
+                project_dir=str(base_path),
+                python_version=python_version,
+                template=template,
+                success=False,
+                error="Invalid project name. Use only letters, digits, hyphens, underscores, and dots.",
+            )
+
+        # Validate python_version format
+        if not _PYTHON_VERSION_RE.match(python_version):
+            return ProjectInitResult(
+                project_name=name,
+                project_dir=str(base_path),
+                python_version=python_version,
+                template=template,
+                success=False,
+                error="Invalid python_version format.",
+            )
+
         project_dir = base_path / name
+
+        # Ensure the resolved project directory stays within the workspace root
+        assert_within_workspace(project_dir.resolve())
 
         logger.info(
             f"Initializing project '{name}' in {base_path} with Python {python_version}"
@@ -104,7 +138,7 @@ class ProjectTools:
         if locked:
             cmd.append("--locked")
 
-        project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+        project_dir = resolve_project_path(project_path)
         logger.info(f"Syncing environment in {project_dir}")
 
         success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
@@ -137,10 +171,27 @@ class ProjectTools:
             ExportResult with operation status.
         """
         cmd = ["export", "--format", file_format]
-        if output_file:
-            cmd.extend(["--output-file", output_file])
 
-        project_dir = Path(project_path).resolve() if project_path else Path.cwd().resolve()
+        _ALLOWED_EXPORT_FORMATS = {"requirements-txt", "pylock"}
+        if file_format not in _ALLOWED_EXPORT_FORMATS:
+            return ExportResult(
+                project_dir="unknown",
+                file_format=file_format,
+                output_file=output_file,
+                success=False,
+                error=(
+                    f"Unsupported export format '{file_format}'. "
+                    f"Allowed values: {', '.join(sorted(_ALLOWED_EXPORT_FORMATS))}"
+                ),
+            )
+
+        project_dir = resolve_project_path(project_path)
+
+        if output_file:
+            resolved_output = (project_dir / output_file).resolve()
+            assert_within_workspace(resolved_output)
+            cmd.extend(["--output-file", str(resolved_output)])
+
         logger.info(f"Exporting requirements from {project_dir}")
 
         success, stdout, stderr = await run_uv_command(cmd, cwd=project_dir)
