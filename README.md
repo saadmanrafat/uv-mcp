@@ -45,6 +45,23 @@ gemini extensions install https://github.com/saadmanrafat/uv-mcp
 claude mcp add uv-mcp -- uv --directory /path/to/uv-mcp run uv-mcp
 ```
 
+**For VS Code** — run once, then per project:
+```bash
+# 1. Install (one-time)
+uv tool install git+https://github.com/saadmanrafat/uv-mcp
+# 2. Add to project
+mkdir -p .vscode && echo '{"servers":{"uv-mcp":{"command":"uvx","args":["uv-mcp"],"env":{"UV_COLOR":"never","TERM":"dumb"}}}}' > .vscode/mcp.json && code .vscode/mcp.json
+```
+
+**For Cursor** — run once, then per project:
+```bash
+# 1. Install (one-time)
+uv tool install git+https://github.com/saadmanrafat/uv-mcp
+# 2. Add to project
+mkdir -p .cursor && echo '{"mcpServers":{"uv-mcp":{"command":"uvx","args":["uv-mcp"],"env":{"UV_COLOR":"never","TERM":"dumb"}}}}' > .cursor/mcp.json && cursor .cursor/mcp.json
+```
+```
+
 More installation options in the [full documentation](https://saadman.dev/uv-mcp/)
 
 ---
