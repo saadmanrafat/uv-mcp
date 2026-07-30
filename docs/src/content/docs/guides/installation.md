@@ -167,3 +167,41 @@ In any connected client, send:
 > *"Check if uv is installed."*
 
 A response with the uv version confirms the server is running.
+
+---
+
+## Security configuration
+
+Two optional environment variables scope what the server is allowed to do.
+
+### `UV_MCP_WORKSPACE_ROOT`
+
+Set this to the absolute path of your project root. When set, every `project_path`
+argument is resolved and validated against this boundary — any path that resolves
+outside the root is rejected before any subprocess is spawned.
+
+```bash
+export UV_MCP_WORKSPACE_ROOT="/home/user/projects/my-app"
+```
+
+Add it to the `env` block of your client config to make it permanent:
+
+```json
+"env": {
+  "UV_COLOR": "never",
+  "TERM": "dumb",
+  "UV_MCP_WORKSPACE_ROOT": "/home/user/projects/my-app"
+}
+```
+
+### `UV_MCP_ALLOWED_TOOLS`
+
+Comma-separated list of PyPI package names that may be run or installed. When set,
+`uv_run_ephemeral_tool`, `uv_tool_install`, and `uv_tool_upgrade` will reject any
+package not in this list.
+
+```bash
+export UV_MCP_ALLOWED_TOOLS="ruff,black,mypy,pytest"
+```
+
+When not set, any valid PyPI package name is accepted (existing behaviour).

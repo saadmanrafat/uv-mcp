@@ -17,7 +17,8 @@ The server exposes tools for:
 - **Environment Diagnostics**: Health checks and self-healing workflows
 
 ## Key Configuration
-- **Workspace Root**: Set via `UV_MCP_WORKSPACE_ROOT` environment variable
+- **Workspace Root**: Set via `UV_MCP_WORKSPACE_ROOT` environment variable — all `project_path` arguments are validated against this root; paths outside it are rejected.
+- **Allowed Tools**: Set via `UV_MCP_ALLOWED_TOOLS` environment variable (comma-separated, e.g. `ruff,black,mypy`) — when set, only these packages may be run via `uv_run_ephemeral_tool`, `uv_tool_install`, and `uv_tool_upgrade`.
 - **Output Format**: ANSI color and terminal sequences stripped for compatibility
 - **Terminal Mode**: Dumb terminal mode enforced for consistent subprocess handling
 

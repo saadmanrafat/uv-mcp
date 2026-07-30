@@ -27,3 +27,12 @@ Call tools by name. Example prompts:
 - *"Check if the environment is broken and fix it"*
 - *"Show the full dependency tree"*
 - *"Build and publish to PyPI"*
+
+## Security configuration
+
+| Variable | Purpose |
+|---|---|
+| `UV_MCP_WORKSPACE_ROOT` | Absolute path of the allowed workspace. All `project_path` arguments are validated against this boundary; paths outside it are rejected. |
+| `UV_MCP_ALLOWED_TOOLS` | Comma-separated list of permitted PyPI packages (e.g. `ruff,black,mypy`). When set, `uv_run_ephemeral_tool`, `uv_tool_install`, and `uv_tool_upgrade` reject unlisted packages. |
+
+Both variables are optional. When unset, behaviour is unchanged.
