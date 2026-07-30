@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -392,3 +393,32 @@ def validate_project_path(path: str | None) -> Path:
     if not project_dir.exists():
         raise ProjectNotFoundError(f"Project directory does not exist: {path}")
     return project_dir
+
+
+# ---------------------------------------------------------------------------
+# Package name validation
+# ---------------------------------------------------------------------------
+
+# Valid PyPI package name with optional extras and version specifier.
+_PACKAGE_NAME_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*"
+    r"(?:\[[A-Za-z0-9,\s._-]+\])?"
+    r"(?:[><=!~]{1,2}[A-Za-z0-9.*+!-]+(?:,[><=!~]{1,2}[A-Za-z0-9.*+!-]+)*)?$"
+)
+_PACKAGE_NAME_FORBIDDEN = frozenset("\n\r;|`$")
+
+
+def validate_package_name(name: str) -> str | None:
+    """
+    Validate a PyPI package name (with optional extras / version specifier).
+
+    Returns:
+        None if the name is valid, or an error message string if invalid.
+    """
+    if not name:
+        return "Package name cannot be empty"
+    if any(c in name for c in _PACKAGE_NAME_FORBIDDEN):
+        return "Package name contains forbidden characters"
+    if not _PACKAGE_NAME_RE.match(name):
+        return "Invalid package name format"
+    return None

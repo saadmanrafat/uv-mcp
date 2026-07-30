@@ -2,7 +2,6 @@
 
 import logging
 import os
-import re
 from datetime import datetime
 from pathlib import Path
 
@@ -62,21 +61,11 @@ from .models import (
     WorkspaceMember,
 )
 from .tools import ProjectTools
-from .utils import assert_within_workspace, resolve_project_path
+from .utils import assert_within_workspace, resolve_project_path, validate_package_name
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uv-mcp")
-
-# Valid PyPI package name: letters/digits/hyphens/underscores/dots, optional
-# extras [extra,...] and optional version specifier (>=1.0, ==1.0, etc.).
-# Newlines, semicolons and pipe characters are unconditionally rejected.
-_PACKAGE_NAME_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]*"
-    r"(?:\[[A-Za-z0-9,\s._-]+\])?"
-    r"(?:[><=!~]{1,2}[A-Za-z0-9.*+!-]+(?:,[><=!~]{1,2}[A-Za-z0-9.*+!-]+)*)?$"
-)
-_PACKAGE_NAME_FORBIDDEN = frozenset("\n\r;|`$")
 
 
 def _get_allowed_tools() -> frozenset[str] | None:
@@ -85,6 +74,24 @@ def _get_allowed_tools() -> frozenset[str] | None:
     if not raw:
         return None
     return frozenset(name.strip().lower() for name in raw.split(",") if name.strip())
+
+
+def _check_package_allowed(package: str) -> str | None:
+    """
+    Validate package name format and enforce UV_MCP_ALLOWED_TOOLS if set.
+
+    Returns None if the package is permitted, or an error message if not.
+    """
+    err = validate_package_name(package)
+    if err:
+        return err
+    allowed = _get_allowed_tools()
+    if allowed is not None:
+        import re as _re
+        base_name = _re.split(r'[\[><=!~]', package)[0].lower()
+        if base_name not in allowed:
+            return f"Package '{base_name}' is not in the configured allowed tools list (UV_MCP_ALLOWED_TOOLS)"
+    return None
 
 
 # Initialize FastMCP server
@@ -515,28 +522,16 @@ async def uv_run_ephemeral_tool(
     """
     from .utils import run_uv_command
 
-    # Validate package name format
-    if not package or not _PACKAGE_NAME_RE.match(package) or any(c in package for c in _PACKAGE_NAME_FORBIDDEN):
+    # Validate package name and enforce allowlist
+    err = _check_package_allowed(package)
+    if err:
         return EphemeralToolResult(
             package=package,
             command=command,
             success=False,
-            error="Invalid package name",
+            error=err,
             return_code=1,
         )
-
-    # Enforce allowlist when UV_MCP_ALLOWED_TOOLS is configured
-    allowed = _get_allowed_tools()
-    if allowed is not None:
-        base_name = _PACKAGE_NAME_RE.match(package).group(0).split("[")[0].lower()  # type: ignore[union-attr]
-        if base_name not in allowed:
-            return EphemeralToolResult(
-                package=package,
-                command=command,
-                success=False,
-                error=f"Package '{base_name}' is not in the configured allowed tools list (UV_MCP_ALLOWED_TOOLS)",
-                return_code=1,
-            )
 
     cwd = resolve_project_path(project_path) if project_path else None
 
@@ -828,6 +823,18 @@ async def uv_run_script(
     """
     from pathlib import Path
     from .utils import run_uv_command
+
+    # Validate each with_packages entry
+    if with_packages:
+        for pkg in with_packages:
+            err = validate_package_name(pkg)
+            if err:
+                return ScriptRunResult(
+                    command=command,
+                    success=False,
+                    error=f"Invalid package in with_packages '{pkg}': {err}",
+                    return_code=1,
+                )
 
     project_dir = resolve_project_path(project_path) if project_path else None
 
@@ -1130,6 +1137,15 @@ async def uv_tool_install(
     """
     from .utils import run_uv_command
 
+    err = _check_package_allowed(package)
+    if err:
+        return ToolListResult(
+            tools=[],
+            count=0,
+            success=False,
+            error=err,
+        )
+
     success, stdout, stderr = await run_uv_command(["tool", "install", package])
 
     return ToolListResult(
@@ -1158,6 +1174,12 @@ async def uv_tool_upgrade(
 
     cmd = ["tool", "upgrade"]
     if package:
+        err = _check_package_allowed(package)
+        if err:
+            return ToolListResult(
+                success=False,
+                error=err,
+            )
         cmd.append(package)
 
     success, stdout, stderr = await run_uv_command(cmd)
@@ -1211,6 +1233,15 @@ async def uv_tool_uninstall(
         ToolListResult with uninstall status.
     """
     from .utils import run_uv_command
+
+    err = validate_package_name(package)
+    if err:
+        return ToolListResult(
+            tools=[],
+            count=0,
+            success=False,
+            error=err,
+        )
 
     success, stdout, stderr = await run_uv_command(["tool", "uninstall", package])
 
