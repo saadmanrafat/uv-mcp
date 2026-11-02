@@ -73,7 +73,8 @@ async def test_project_lifecycle(client, project: Path) -> None:
 
     version = await call(client, "uv_version", {"project_path": "demo"})
     assert version["version"] == "0.1.0" and version["package_name"] == "demo"
-    bumped = await call(client, "uv_version", {"project_path": "demo", "bump": ["minor"], "no_sync": True})
+    # Default bump re-locks and syncs, so the environment stays consistent for uv_diagnose below.
+    bumped = await call(client, "uv_version", {"project_path": "demo", "bump": ["minor"]})
     assert bumped["success"], bumped
     assert bumped["previous_version"] == "0.1.0" and bumped["version"] == "0.2.0"
 
