@@ -1,41 +1,42 @@
 ---
-title: MCP and Extensions
-description: "Understanding the ecosystem: Model Context Protocol and Gemini Extensions."
+title: MCP and extensions
+description: How MCP servers, clients and Gemini extensions fit together, and what that means for uv-mcp.
 ---
 
-# MCP and Extensions
+## The Model Context Protocol
 
-This document explains the underlying standards that enable UV-MCP to function.
+The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open standard that lets AI
+applications call tools provided by separate programs. A **client** (Claude Code, Codex, Gemini CLI, an
+IDE) starts a **server** and talks to it over JSON-RPC. The server advertises **tools**, each with a name,
+a description, a JSON Schema for its input and, optionally, its output, plus **annotations** such as
+"read-only" or "destructive". The model decides which tool to call, the client sends the call, and the
+server returns the result.
 
-## The Model Context Protocol (MCP)
+uv-mcp is a **stdio** server: the client launches `uvx uv-mcp-server` as a child process and exchanges
+messages over its stdin and stdout. Nothing listens on the network, and the server lives exactly as long as
+the client session.
 
-The **Model Context Protocol (MCP)** is an open standard designed to solve the connectivity problem between AI models and external systems.
+When the session starts, uv-mcp also sends **instructions**: a short guide telling the model to prefer
+project commands over pip, to diagnose before guessing, to read `hint` on failures and never to publish
+without being asked. Clients add these to the model's context.
 
-### The Problem
-Traditionally, AI models are isolated ("sandboxed"). They cannot read your files, run code, or check your system status without complex, custom-built integrations.
+## A tool call, end to end
 
-### The MCP Solution
-MCP defines a universal language for:
-1.  **Exposing Resources**: Allowing the AI to read data (logs, files).
-2.  **Exposing Tools**: Allowing the AI to execute actions (commands, API calls).
-3.  **Exposing Prompts**: Pre-defined templates for user interaction.
+1. You ask: *"Add httpx to this project."*
+2. The model chooses `uv_add` with `{"packages": ["httpx"]}`.
+3. The client checks its permission rules. `uv_add` is not read-only, so it may ask you first.
+4. uv-mcp validates the arguments, resolves the project directory, and runs `uv add httpx` without a shell.
+5. It returns a structured result. The model reads `success` and `stderr` (where uv reports what it
+   resolved and installed) and tells you what happened.
 
-UV-MCP functions as an **MCP Server**. It translates the AI's intent into local `uv` commands.
+## Gemini CLI extensions
 
-## Gemini Extensions
+A Gemini **extension** packages MCP servers together with context files for Gemini CLI. uv-mcp's
+repository is itself an extension: `gemini-extension.json` declares the server, and `GEMINI.md` is loaded
+as context so Gemini knows when each tool is appropriate. `gemini extensions install
+https://github.com/saadmanrafat/uv-mcp` clones the repository and registers both. The extension runs the
+server from that clone with `uv run --project ${extensionPath}`, and passes `${workspacePath}` as the
+workspace root.
 
-While MCP is the *communication protocol*, a **Gemini Extension** is the *packaging format* used to distribute these capabilities to Gemini-powered interfaces.
-
-### Integration
-When you install UV-MCP as an extension, you are registering it as a trusted tool provider. The Gemini CLI uses the extension manifest to:
--   **Discover** the server.
--   **Launch** the server process in the background.
--   **Route** relevant user queries to the server.
-
-### The Workflow
-
-1.  **User Query**: "Install numpy."
-2.  **Gemini Client**: Identifies that `install_dependency` (a tool provided by the UV-MCP extension) is relevant.
-3.  **Protocol Handshake**: The client sends an MCP JSON-RPC request to the UV-MCP server.
-4.  **Execution**: UV-MCP executes the `uv` command locally.
-5.  **Response**: The result is sent back via MCP, and Gemini summarizes it for you.
+Other clients have no extension format; you add the server to their MCP configuration as shown in
+[Installation](/uv-mcp/guides/installation/).
