@@ -89,6 +89,21 @@ async def test_project_lifecycle(client, project: Path) -> None:
     assert "sync" in diag["checks_run"]
 
 
+async def test_workspace_tools(client, project: Path) -> None:
+    listed = await call(client, "uv_workspace_list", {"project_path": "demo"})
+    assert listed["success"], listed
+    assert listed["members"] == ["demo"]
+    found = await call(client, "uv_workspace_dir", {"project_path": "demo"})
+    assert found["success"] and Path(found["path"]).resolve() == project.resolve()
+    meta = await call(client, "uv_workspace_metadata", {"project_path": "demo"})
+    assert meta["success"], meta
+    assert isinstance(meta["metadata"], dict)
+
+
+async def test_tool_audit_requires_a_target(client) -> None:
+    assert "packages or all" in await call_error(client, "uv_tool_audit", {})
+
+
 async def test_relative_project_path_uses_workspace_root(client, project: Path) -> None:
     data = await call(client, "uv_python_find", {"project_path": "demo"})
     assert data["success"], data

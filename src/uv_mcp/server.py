@@ -17,7 +17,7 @@ from .config import ALL_TOOLSETS, Settings, get_settings, parse_paths, parse_too
 from .registry import REGISTRY, ToolSpec
 
 # Importing the modules registers their tools.
-from .tools import auth, build, cache, diagnostics, env, meta, pip, project, python, uvtools  # noqa: F401
+from .tools import auth, build, cache, diagnostics, env, meta, pip, project, python, uvtools, workspace  # noqa: F401
 
 logger = logging.getLogger("uv_mcp")
 

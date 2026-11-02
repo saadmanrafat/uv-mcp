@@ -59,6 +59,18 @@ class AuditResult(CommandResult):
     report: Any | None = Field(default=None, description="Parsed JSON report, when available.")
 
 
+class WorkspaceListResult(CommandResult):
+    members: list[str] = Field(default_factory=list, description="Member names (or paths, or scripts).")
+
+
+class WorkspaceDirResult(CommandResult):
+    path: str | None = None
+
+
+class WorkspaceMetadataResult(CommandResult):
+    metadata: Any | None = Field(default=None, description="Parsed workspace metadata (uv's JSON, preview schema).")
+
+
 # --------------------------------------------------------------------------- #
 # Python
 # --------------------------------------------------------------------------- #

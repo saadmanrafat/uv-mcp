@@ -49,7 +49,7 @@ uv_tree  { "packages": ["urllib3"], "invert": true }
 | Remove | `uv_remove { "packages": ["requests"] }` |
 | Upgrade everything | `uv_lock { "upgrade": true }` then `uv_sync` |
 | What is outdated? | `uv_tree { "outdated": true, "depth": 1 }` |
-| Check for vulnerabilities | `uv_audit {}` |
+| Check for vulnerabilities | `uv_audit {}` (and `uv_tool_audit { "all": true }` for installed tools) |
 | Export for Docker | `uv_export { "output_file": "requirements.txt", "no_dev": true }` |
 
 The agent should never edit `uv.lock` by hand, and should prefer `uv_add`/`uv_remove` to editing
@@ -70,6 +70,18 @@ uv_run { "command": ["python", "main.py"], "env": { "DEBUG": "1" } }
 
 A non-zero exit status is reported as `success: false` with the real `exit_code`, so failing tests are
 easy to distinguish from a uv error (`hint` is set for the latter).
+
+## Workspaces (monorepos)
+
+> *"Which packages are in this workspace, and where is the api package?"*
+
+```json
+uv_workspace_list { "paths": true }
+uv_workspace_dir  { "member": "api" }
+uv_sync           { "all_packages": true }
+```
+
+Most project tools take `member` to act on one workspace package (uv's `--package`).
 
 ## Python versions
 
@@ -142,8 +154,8 @@ Every tool accepts `extra_args` for flags without a dedicated parameter:
 uv_sync { "extra_args": ["--no-install-project", "--compile-bytecode"] }
 ```
 
-And `uv_command` runs any uv subcommand:
+And `uv_command` runs any uv subcommand, including ones added in uv releases newer than your uv-mcp:
 
 ```json
-uv_command { "args": ["workspace", "list"] }
+uv_command { "args": ["help", "sync"] }
 ```

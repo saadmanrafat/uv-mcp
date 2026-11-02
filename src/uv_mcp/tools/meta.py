@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import os
 import platform
+import re
 from typing import Annotated
 
 from pydantic import Field
 
 from .. import __version__
 from ..config import get_settings
+from ..coverage import BLOCKED
 from ..models import CommandResult, SelfUpdateResult, ServerInfo, UVDirectories
 from ..parsing import last_line, load_json
 from ..registry import uv_tool
@@ -133,39 +135,12 @@ async def uv_self_update(
 # Escape hatch
 # --------------------------------------------------------------------------- #
 
-_KNOWN_COMMANDS = {
-    "auth",
-    "run",
-    "init",
-    "add",
-    "remove",
-    "version",
-    "sync",
-    "lock",
-    "export",
-    "tree",
-    "format",
-    "check",
-    "audit",
-    "tool",
-    "python",
-    "pip",
-    "venv",
-    "build",
-    "publish",
-    "workspace",
-    "cache",
-    "self",
-    "help",
-    "generate-shell-completion",
-    "--version",
-}
-#: Subcommand prefixes that are never allowed through uv_command.
-_BLOCKED = {
-    ("auth", "token"): "returns stored secrets into the conversation",
-    ("python", "update-shell"): "edits the user's shell profile",
-    ("tool", "update-shell"): "edits the user's shell profile",
-}
+#: The first argument must be a subcommand (or --version/--help), never a global flag such as --directory.
+#: Any subcommand shape is accepted so commands added in newer uv releases work immediately; uv rejects unknown ones.
+_SUBCOMMAND_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+_TOP_LEVEL_FLAGS = {"--version", "--help", "-V", "-h"}
+#: Subcommand prefixes that are never allowed through uv_command (see uv_mcp.coverage).
+_BLOCKED = BLOCKED
 #: Subcommand prefixes permitted in read-only mode.
 _READ_ONLY = {
     ("--version",),
@@ -177,6 +152,7 @@ _READ_ONLY = {
     ("python", "dir"),
     ("tool", "list"),
     ("tool", "dir"),
+    ("tool", "audit"),
     ("pip", "list"),
     ("pip", "show"),
     ("pip", "freeze"),
@@ -192,6 +168,12 @@ _READ_ONLY = {
     ("lock", "--check"),
     ("sync", "--check"),
 }
+
+
+def _is_blocked(args: list[str], prefix: tuple[str, ...]) -> bool:
+    """Loose match for the blocklist: uv accepts global flags between subcommands (``auth -q token``), so a
+    blocked subcommand anywhere after its parent counts."""
+    return args[0] == prefix[0] and all(part in args[1:] for part in prefix[1:])
 
 
 def _matches(args: list[str], prefix: tuple[str, ...]) -> bool:
@@ -222,16 +204,18 @@ async def uv_command(
 
     settings = get_settings()
     argv = safe_extra_args(args, settings)
-    if argv[0] not in _KNOWN_COMMANDS:
+    if not (_SUBCOMMAND_RE.match(argv[0]) or argv[0] in _TOP_LEVEL_FLAGS):
         raise ValidationError(
-            f"Unknown uv subcommand {argv[0]!r}. The first element must be a subcommand such as 'sync' or 'pip'."
+            f"The first argument must be a uv subcommand such as 'sync' or 'pip', not {argv[0]!r}. "
+            "Put global flags after the subcommand."
         )
     for prefix, reason in _BLOCKED.items():
-        if _matches(argv, prefix):
+        if _is_blocked(argv, prefix):
             raise ValidationError(f"`uv {' '.join(prefix)}` is not allowed through uv-mcp: it {reason}.")
     if settings.read_only and not any(_matches(argv, p) for p in _READ_ONLY):
         raise ValidationError("uv-mcp is in read-only mode; only inspection commands may run through uv_command.")
-    if settings.read_only and argv[0] in ("tree", "audit") and "--frozen" not in argv and "--locked" not in argv:
+    implicitly_locks = argv[0] in ("tree", "audit") or argv[:2] == ["workspace", "metadata"]
+    if settings.read_only and implicitly_locks and "--frozen" not in argv and "--locked" not in argv:
         argv.append("--frozen")
     cwd = project_dir(project_path)
     return await run(argv, cwd=cwd, timeout=timeout_seconds)

@@ -16,9 +16,11 @@ Tool names mirror the uv CLI: `uv add` is `uv_add`, `uv pip list` is `uv_pip_lis
 | Install everything from the lockfile | `uv_sync` |
 | Run code, tests, scripts | `uv_run` |
 | Why is X installed? | `uv_tree` with `packages=["X"]`, `invert=true` |
+| Workspaces (monorepos) | `uv_workspace_list`, `uv_workspace_dir`, `uv_workspace_metadata` |
 | Python versions | `uv_python_list`, `uv_python_install`, `uv_python_pin`, `uv_python_find` |
 | Plain virtualenv / requirements.txt | `uv_venv`, `uv_pip_install`, `uv_pip_compile`, `uv_pip_sync` |
 | One-off CLI tool (ruff, black, httpie) | `uv_tool_run` |
+| Vulnerability audit | `uv_audit` (project), `uv_tool_audit` (installed tools) |
 | Broken environment or ImportError | `uv_diagnose`, then `uv_repair` |
 | Anything else uv can do | `uv_command` |
 

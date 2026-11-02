@@ -46,7 +46,8 @@ Agents can always override it per call with `project_path`, either absolute or r
 
 Only tools annotated read-only are registered: `uv_info`, `uv_project_info`, `uv_diagnose`, `uv_tree`,
 `uv_export` (to stdout only), `uv_audit`, `uv_python_list`, `uv_python_find`, `uv_pip_list`, `uv_pip_show`,
-`uv_pip_freeze`, `uv_pip_tree`, `uv_pip_check`, `uv_tool_list` and `uv_cache_size`. Commands that would
+`uv_pip_freeze`, `uv_pip_tree`, `uv_pip_check`, `uv_tool_list`, `uv_tool_audit`, `uv_workspace_list`,
+`uv_workspace_dir`, `uv_workspace_metadata` and `uv_cache_size`. Commands that would
 otherwise refresh `uv.lock` are run with `--frozen`, and `uv_command` only accepts inspection commands.
 
 Use it for review or CI agents that should look at environments but never change them.
@@ -57,11 +58,11 @@ Fewer tools means less context spent on tool definitions. Pick only what an agen
 
 | Toolset | Tools |
 |---|---|
-| `project` | `uv_init`, `uv_add`, `uv_remove`, `uv_sync`, `uv_lock`, `uv_run`, `uv_tree`, `uv_export`, `uv_version`, `uv_format`, `uv_check`, `uv_audit` |
+| `project` | `uv_init`, `uv_add`, `uv_remove`, `uv_sync`, `uv_lock`, `uv_run`, `uv_tree`, `uv_export`, `uv_version`, `uv_format`, `uv_check`, `uv_audit`, `uv_workspace_list`, `uv_workspace_dir`, `uv_workspace_metadata` |
 | `python` | `uv_python_list`, `uv_python_install`, `uv_python_upgrade`, `uv_python_uninstall`, `uv_python_find`, `uv_python_pin` |
 | `pip` | `uv_pip_install`, `uv_pip_uninstall`, `uv_pip_list`, `uv_pip_show`, `uv_pip_freeze`, `uv_pip_tree`, `uv_pip_check`, `uv_pip_compile`, `uv_pip_sync` |
 | `venv` | `uv_venv` |
-| `tool` | `uv_tool_run`, `uv_tool_install`, `uv_tool_upgrade`, `uv_tool_uninstall`, `uv_tool_list` |
+| `tool` | `uv_tool_run`, `uv_tool_install`, `uv_tool_upgrade`, `uv_tool_uninstall`, `uv_tool_list`, `uv_tool_audit` |
 | `build` | `uv_build`, `uv_publish` |
 | `cache` | `uv_cache_clean`, `uv_cache_prune`, `uv_cache_size` |
 | `auth` | `uv_auth_login`, `uv_auth_logout` |

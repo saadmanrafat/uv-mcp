@@ -1,4 +1,4 @@
-"""Python CLI tools: uv tool run (uvx) / install / upgrade / uninstall / list."""
+"""Python CLI tools: uv tool run (uvx) / install / upgrade / uninstall / list / audit."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from typing import Annotated
 
 from pydantic import Field
 
-from ..models import CommandResult, ToolListResult
-from ..parsing import parse_tool_list
+from ..models import AuditResult, CommandResult, ToolListResult
+from ..parsing import load_json, parse_tool_list
 from ..registry import uv_tool
 from ..security import ValidationError, require_values, safe_env, safe_value
 from ._common import Args, ExtraArgs, PythonRequest, TimeoutSeconds, extend, project_dir, run
@@ -123,3 +123,27 @@ async def uv_tool_list(
     result = await run(args)
     tools = parse_tool_list(result.stdout) if result.success else []
     return extend(result, ToolListResult, tools=tools, stdout="" if tools else result.stdout)
+
+
+@uv_tool(
+    title="Audit installed tools for vulnerabilities (uv tool audit)",
+    toolset="tool",
+    read_only=True,
+    idempotent=True,
+    open_world=True,
+)
+async def uv_tool_audit(
+    packages: Annotated[list[str] | None, Field(description="Installed tools to audit.")] = None,
+    all: Annotated[bool, Field(description="Audit every installed tool.")] = False,
+    ignore: Annotated[list[str] | None, Field(description="Vulnerability IDs to ignore.")] = None,
+    extra_args: ExtraArgs = None,
+) -> AuditResult:
+    """Check tools installed with uv_tool_install, and their dependencies, against known vulnerabilities (OSV).
+    Requires uv 0.13 or newer."""
+    if bool(packages) == bool(all):
+        raise ValidationError("Pass either packages or all=true")
+    args = Args("tool", "audit", "--output-format", "json").flag(all, "--all").many("--ignore", ignore, "ignore")
+    args.extra(extra_args).positional(packages, "package")
+    result = await run(args)
+    report = load_json(result.stdout)
+    return extend(result, AuditResult, report=report, stdout="" if report is not None else result.stdout)

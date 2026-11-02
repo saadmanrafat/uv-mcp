@@ -28,24 +28,25 @@ Agents can run shell commands, but a dedicated server makes them faster and safe
 
 ## What is included
 
-46 tools, grouped into toolsets that can be enabled individually:
+50 tools, grouped into toolsets that can be enabled individually:
 
 | Area | Tools |
 |---|---|
 | Orientation | `uv_info`, `uv_project_info` |
-| Projects | `uv_init`, `uv_add`, `uv_remove`, `uv_sync`, `uv_lock`, `uv_run`, `uv_tree`, `uv_export`, `uv_version`, `uv_format`, `uv_check`, `uv_audit` |
+| Projects | `uv_init`, `uv_add`, `uv_remove`, `uv_sync`, `uv_lock`, `uv_run`, `uv_tree`, `uv_export`, `uv_version`, `uv_format`, `uv_check`, `uv_audit`, `uv_workspace_list`, `uv_workspace_dir`, `uv_workspace_metadata` |
 | Python versions | `uv_python_list`, `uv_python_install`, `uv_python_upgrade`, `uv_python_uninstall`, `uv_python_find`, `uv_python_pin` |
 | pip interface | `uv_pip_install`, `uv_pip_uninstall`, `uv_pip_list`, `uv_pip_show`, `uv_pip_freeze`, `uv_pip_tree`, `uv_pip_check`, `uv_pip_compile`, `uv_pip_sync` |
 | Virtual environments | `uv_venv` |
-| Tools (`uvx`) | `uv_tool_run`, `uv_tool_install`, `uv_tool_upgrade`, `uv_tool_uninstall`, `uv_tool_list` |
+| Tools (`uvx`) | `uv_tool_run`, `uv_tool_install`, `uv_tool_upgrade`, `uv_tool_uninstall`, `uv_tool_list`, `uv_tool_audit` |
 | Packaging | `uv_build`, `uv_publish` |
 | Cache, auth, uv itself | `uv_cache_clean`, `uv_cache_prune`, `uv_cache_size`, `uv_auth_login`, `uv_auth_logout`, `uv_self_update` |
 | Health | `uv_diagnose`, `uv_repair` |
 | Anything else | `uv_command` |
 
 Flags without a dedicated parameter can be passed through `extra_args`, and uv subcommands without a
-dedicated tool (such as `uv workspace list`) are reachable through `uv_command`, so nothing uv can do is
-out of reach.
+dedicated tool (`uv help`) are reachable through `uv_command`, so nothing uv can do is out of reach. The
+[coverage table](/uv-mcp/reference/tools/#uv-command-coverage) maps every uv command to its tool, and a test
+fails if a new uv release adds a command uv-mcp does not cover.
 
 ## Next steps
 
