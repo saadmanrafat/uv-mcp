@@ -86,8 +86,9 @@ async def uv_info() -> ServerInfo:
         )
     if (root / "src" / "uv_mcp").is_dir() and not os.environ.get("UV_MCP_WORKSPACE_ROOT"):
         notes.append(
-            "The workspace root looks like the uv-mcp source tree itself; the client probably launched the server "
-            "with `uv --directory`. Use `uvx uv-mcp-server` or set UV_MCP_WORKSPACE_ROOT."
+            "The workspace root is the uv-mcp source tree. That is expected when working on uv-mcp itself; if you "
+            "meant another project, the client config likely uses `uv --directory`. Switch it to "
+            "`uvx uv-mcp-server`, set UV_MCP_WORKSPACE_ROOT, or pass project_path."
         )
     if settings.read_only:
         notes.append("Read-only mode: tools that modify projects, environments or caches are disabled.")
