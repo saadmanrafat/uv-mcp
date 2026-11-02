@@ -1,16 +1,8 @@
 {
   "mcpServers": {
-    "uv-mcp": {
+    "uv": {
       "command": "uv",
-      "args": [
-        "run", 
-        "--project", "/home/saadman/uv-mcp", 
-        "uv-mcp"
-      ],
-      "env": {
-        "UV_COLOR": "never",
-        "TERM": "dumb"
-      }
+      "args": ["run", "--quiet", "uv-mcp-server"]
     }
   }
 }
