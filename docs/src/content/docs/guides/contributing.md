@@ -1,66 +1,61 @@
 ---
 title: Contributing
-description: Guidelines for contributing to the UV-MCP project.
+description: Set up a development environment, run the tests and add a new tool.
 ---
 
-# Contributing
-
-Thank you for your interest in improving UV-MCP. We follow standard open-source practices and use `uv` for all development workflows.
-
-## Development Setup
-
-### 1. Fork and Clone
-Fork the repository to your GitHub account, then clone it locally:
+## Set up
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/uv-mcp.git
+git clone https://github.com/saadmanrafat/uv-mcp.git
 cd uv-mcp
-```
-
-### 2. Initialize Environment
-Use `uv` to sync dependencies and set up the development virtual environment:
-
-```bash
 uv sync
 ```
 
-This command reads `pyproject.toml` and installs all necessary dependencies, including dev tools like `pytest`.
+The repository ships `.mcp.json`, `.codex/config.toml` and `opencode.json` that run the server from your
+checkout, so opening the repo in Claude Code, Codex or OpenCode lets you try your changes immediately.
 
-## Testing
-
-We prioritize reliability. Ensure all tests pass before submitting changes.
-
-### Run All Tests
-Execute the full test suite:
+## Check your work
 
 ```bash
-uv run pytest
+uv run pytest -m "not network"     # fast; needs uv on PATH but no internet
+uv run pytest                      # everything, including tests that download from PyPI
+uv run ruff check src tests scripts
+uv run ruff format src tests scripts
+uv run uv-mcp-server --list-tools
 ```
 
-### Targeted Testing
-To test specific components (e.g., tool definitions):
+The integration tests drive the server through a real MCP client against the real uv, in temporary
+directories.
+
+## Adding or changing a tool
+
+1. Put it in the matching module under `src/uv_mcp/tools/`, named after the uv command
+   (`uv pip tree` becomes `uv_pip_tree`).
+2. Decorate it with `@uv_tool(title=..., toolset=..., read_only=..., destructive=..., idempotent=..., open_world=...)`.
+   Be honest: clients rely on these annotations to decide when to ask the user.
+3. Build the command with `Args`, which validates values, and resolve every path with `project_dir()` or
+   `security.resolve_path()`. Never use a shell.
+4. Pass secrets with `env=`/`stdin_data=` plus `secrets=[...]`, never on argv.
+5. Keep descriptions short (they cost every user context) and leave rare flags to `extra_args`.
+6. Add tests, then regenerate the reference:
 
 ```bash
-uv run python test_tools.py
+uv run python scripts/gen_tool_reference.py
 ```
 
-## Workflow for New Features
+## Documentation
 
-1.  **Branching**: Create a feature branch (`feat/new-tool` or `fix/bug-fix`).
-2.  **Implementation**:
-    -   Add core logic to `actions.py` or `diagnostics.py`.
-    -   Expose the new capability in `server.py` using the `@mcp.tool()` decorator.
-3.  **Documentation**: Update `src/content/docs/reference/tools.md` with the new API signature.
-4.  **Verification**: Add a corresponding test case in `tests/`.
+The site is [Starlight](https://starlight.astro.build/) under `docs/`:
 
-## Code Standards
+```bash
+cd docs
+npm ci
+npm run dev
+python3 ../scripts/check_docs.py   # internal links and style checks, run from the repo root
+```
 
--   **Type Safety**: All function signatures must include Python type hints.
--   **Formatting**: We adhere to PEP 8.
--   **Docstrings**: Public functions must include clear docstrings describing parameters and return values.
+## Releasing
 
-## Submitting a Pull Request
-
-1.  Push your branch to your fork.
-2.  Open a Pull Request against the `main` branch of the upstream repository.
-3.  Provide a clear description of the problem solved and the solution implemented.
+1. Bump the version in `pyproject.toml` and `gemini-extension.json` and add a changelog entry.
+2. Tag `vX.Y.Z` and push the tag. CI tests everything, publishes `uv-mcp-server` to PyPI with trusted
+   publishing, and creates a GitHub release.
