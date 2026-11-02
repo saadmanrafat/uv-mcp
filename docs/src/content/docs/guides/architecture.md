@@ -1,63 +1,66 @@
 ---
 title: Architecture
-description: Technical deep dive into the UV-MCP system design and implementation.
+description: How uv-mcp is put together, for contributors and the curious.
 ---
 
-# Architecture
+uv-mcp is a thin, careful layer between an MCP client and the real `uv` executable. It does not
+reimplement any packaging logic: every operation is a uv invocation, so behaviour always matches the uv
+the user has installed.
 
-This document provides a technical overview of the UV-MCP codebase, intended for developers who wish to understand the internal mechanisms or contribute to the project.
-
-## Project Structure
-
-The codebase follows a modular design within the `src/uv_mcp/` directory, separating protocol handling, business logic, and low-level system interactions.
+## Layout
 
 ```text
 src/uv_mcp/
-├── __init__.py
-├── server.py         # MCP Protocol Server & Entry Point
-├── actions.py        # Imperative Action Handlers (Write operations)
-├── diagnostics.py    # State Analysis & Health Checks (Read operations)
-├── tools.py          # Project Lifecycle & Utility Tools
-└── utils.py          # Subprocess abstraction & uv CLI wrappers
+├── server.py        create_server(), agent INSTRUCTIONS, the uv-mcp-server CLI
+├── config.py        Settings (env vars and flags), workspace-root resolution
+├── registry.py      @uv_tool: declares a tool's toolset and MCP annotations
+├── runner.py        run_uv(): the only place a subprocess is started
+├── security.py      argument validation, path confinement, secret redaction
+├── hints.py         uv error text to a one-line suggested fix
+├── parsing.py       uv output (JSON and text) to typed models
+├── models.py        Pydantic result models (the tools' output schemas)
+├── diagnostics.py   project introspection, health checks, repair planning
+└── tools/
+    ├── project.py   init, add, remove, sync, lock, run, tree, export, version, format, check, audit
+    ├── python.py    python list, install, upgrade, uninstall, find, pin
+    ├── pip.py       pip install, uninstall, list, show, freeze, tree, check, compile, sync
+    ├── env.py       venv
+    ├── uvtools.py   tool run (uvx), install, upgrade, uninstall, list
+    ├── build.py     build, publish
+    ├── cache.py     cache clean, prune, size
+    ├── auth.py      auth login, logout
+    ├── meta.py      uv_info, self update, uv_command
+    └── diagnostics.py  uv_project_info, uv_diagnose, uv_repair
 ```
 
-## System Components
+## A request, step by step
 
-### 1. The MCP Server (`server.py`)
-The server module acts as the interface layer. It utilizes the `fastmcp` library to define the capabilities exposed to the client.
--   **Role**: Router and Protocol Handler.
--   **Function**: Maps incoming JSON-RPC requests (e.g., "call_tool") to internal Python functions.
+1. **Registration.** At start-up `create_server()` takes every `@uv_tool` from the registry, drops those
+   excluded by the toolset selection or read-only mode, builds the input schema from the function's type
+   hints, compacts it, and registers it with [FastMCP](https://gofastmcp.com/).
+2. **Validation.** FastMCP validates the JSON arguments against the schema. Each tool then resolves paths
+   with `security.resolve_path` (relative to the workspace root, symlinks resolved, confinement checked) and
+   builds argv with the `Args` helper, which rejects option-like values. Invalid input becomes an MCP tool
+   error and uv never runs.
+3. **Execution.** `runner.run_uv()` starts uv with no shell, a scrubbed environment (no inherited
+   `VIRTUAL_ENV`, no colours or progress bars), closed stdin and its own process group. Mutating calls
+   take a per-directory lock. A heartbeat sends MCP progress notifications while uv runs. On timeout the
+   process group is killed.
+4. **Result.** Output is decoded, redacted and truncated; a hint is attached on failure; parsers turn JSON
+   or text output into typed fields. The tool returns a Pydantic model, which FastMCP sends as structured
+   content that matches the advertised output schema.
 
-### 2. Action Orchestrator (`actions.py`)
-This module contains the imperative logic for modifying the system state.
--   **Role**: Executor.
--   **Key Functions**: `repair_environment_action`, `add_dependency_action`.
--   **Responsibility**: Validates preconditions (e.g., existence of `pyproject.toml`) before invoking `uv` commands.
+## Design decisions
 
-### 3. Diagnostic Engine (`diagnostics.py`)
-A read-only subsystem responsible for analyzing project health.
--   **Role**: Analyst.
--   **Key Functions**: `diagnose_environment`.
--   **Responsibility**: Parses metadata, inspects the virtual environment, and aggregates health metrics into a structured JSON report.
-
-### 4. Process Abstraction (`utils.py`)
-A safety layer around `asyncio.subprocess`.
--   **Role**: HAL (Hardware/System Abstraction).
--   **Responsibility**: Executes shell commands, handles timeouts, captures standard output/error streams, and ensures proper error propagation.
-
-## Request Lifecycle
-
-The flow of a typical user request (e.g., "Add numpy") is as follows:
-
-1.  **Ingest**: The AI client transmits a JSON-RPC request: `call_tool("add_dependency", {"package": "numpy"})`.
-2.  **Routing**: `server.py` receives the payload and dispatches it to the registered handler in `actions.py`.
-3.  **Validation**: The handler verifies that the current working directory is a valid Python project.
-4.  **Execution**: `utils.py` spawns a subprocess: `uv add numpy`.
-5.  **Output**: The subprocess's `stdout` and `stderr` are captured and parsed.
-6.  **Response**: A JSON response indicating success or failure is returned to the client.
-
-## Design Principles
-
--   **Statelessness**: The server maintains minimal state between requests, relying on the filesystem as the source of truth.
--   **Idempotency**: Where possible, tools are designed to be idempotent (e.g., diagnosing an already healthy environment is a no-op).
--   **Fail-Safe**: Subprocesses are isolated; a failure in `uv` execution is caught and returned as a structured error, preventing a server crash.
+- **Mirror the CLI.** Tool and parameter names follow uv's, because models already know uv. Only commonly
+  used flags get parameters; `extra_args` covers the rest, which keeps schemas small.
+- **Results, not exceptions, for uv failures.** A failed `uv sync` is a normal outcome the agent must
+  reason about, so it returns `success: false` with stderr and a hint. Exceptions (MCP tool errors) are
+  reserved for invalid input and policy refusals.
+- **Annotations are part of the contract.** `readOnlyHint` drives read-only mode, and clients use the
+  annotations to decide when to ask the user. A test checks that every read-only-mode tool is annotated
+  read-only.
+- **The filesystem is the state.** The server keeps no state between calls apart from locks; restarting it
+  loses nothing.
+- **Generated reference.** `docs/.../reference/tools.md` is generated from the live schemas by
+  `scripts/gen_tool_reference.py`, and CI fails if it is stale.

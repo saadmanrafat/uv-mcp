@@ -1,332 +1,367 @@
-"""Environment diagnostics for Python projects using uv."""
+"""Project introspection, health checks and automated repair."""
 
+from __future__ import annotations
+
+import contextlib
+import os
 import sys
+import tomllib
 from pathlib import Path
+from typing import Any
 
-from .models import (
-    DependencyCheck,
-    DiagnosticReport,
-    ProjectInfo,
-    PythonCheck,
-    StructureCheck,
-    UVInfo,
-    VirtualEnvInfo,
-)
-from .utils import (
-    check_project_venv,
-    check_uv_available,
-    find_uv_project_root,
-    get_project_info,
-    run_uv_command,
-)
+from .config import Settings
+from .models import DiagnosticReport, EnvironmentInfo, Finding, ProjectInfo, RepairResult, RepairStep
+from .runner import run_uv
+
+_SEVERITY = {"info": 0, "warning": 1, "error": 2}
 
 
-def check_project_structure(project_dir: Path | None = None) -> StructureCheck:
-    """
-    Validate project file structure.
-
-    Args:
-        project_dir: Project directory (defaults to current directory)
-
-    Returns:
-        StructureCheck with structure validation results
-    """
-    if project_dir is None:
-        project_dir = Path.cwd().resolve()
-    else:
-        project_dir = project_dir.resolve()
-
-    valid = True
-    issues = []
-    warnings = []
-
-    # Check for project configuration
-    if not (project_dir / "pyproject.toml").exists():
-        if not (project_dir / "requirements.txt").exists():
-            valid = False
-            issues.append("No pyproject.toml or requirements.txt found")
-        else:
-            warnings.append(
-                "Using requirements.txt instead of pyproject.toml (consider migrating)"
-            )
-
-    # Check for virtual environment
-    venv_exists, _ = check_project_venv(project_dir)
-    if not venv_exists:
-        warnings.append("No .venv detected in project root")
-
-    # Check for lockfile
-    if (project_dir / "pyproject.toml").exists() and not (
-        project_dir / "uv.lock"
-    ).exists():
-        warnings.append("No uv.lock file found (run 'uv lock' to create)")
-
-    return StructureCheck(valid=valid, issues=issues, warnings=warnings)
+# --------------------------------------------------------------------------- #
+# Static introspection
+# --------------------------------------------------------------------------- #
 
 
-async def check_dependencies(project_dir: Path | None = None) -> DependencyCheck:
-    """
-    Analyze dependency health.
-
-    Args:
-        project_dir: Project directory (defaults to current directory)
-
-    Returns:
-        DependencyCheck with dependency analysis results
-    """
-    if project_dir is None:
-        project_dir = Path.cwd().resolve()
-    else:
-        project_dir = project_dir.resolve()
-
-    healthy = True
-    issues = []
-    warnings = []
-    installed_packages = None
-
-    # Get project info
-    info = get_project_info(project_dir)
-
-    if not info["has_pyproject"] and not info["has_requirements"]:
-        healthy = False
-        issues.append("No dependency file found")
-        return DependencyCheck(healthy=healthy, issues=issues)
-
-    # Check for dependency conflicts using uv pip check
-    success, stdout, stderr = await run_uv_command(["pip", "check"], cwd=project_dir)
-
-    if not success:
-        # Issue #5: Logic was previously inverted or confused.
-        # uv pip check returns non-zero exit code if conflicts are found.
-        # However, it might also fail due to other reasons.
-        
-        # If "No broken requirements found" is in output, it means check passed but maybe exit code
-        # is non-zero for another reason (unlikely for 'pip check' but possible).
-        # Actually, if check passes, exit code is 0.
-        
-        # If exit code != 0, it means either broken requirements OR error.
-        if "No broken requirements found" in stdout or "No broken requirements found" in stderr:
-             # This theoretically shouldn't happen with non-zero exit code unless uv changed behavior
-             pass
-        else:
-            healthy = False
-            # Try to extract the issue description
-            if stdout.strip():
-                 issues.append(f"Dependency conflicts detected: {stdout.strip()}")
-            elif stderr.strip():
-                 # Could be a genuine error running the command
-                 issues.append(f"Failed to check dependencies: {stderr.strip()}")
-            else:
-                 issues.append("Dependency check failed (unknown reason)")
-    else:
-        # Success (exit code 0) means no broken requirements found
-        pass
+def _read_toml(path: Path) -> dict[str, Any]:
+    with path.open("rb") as fh:
+        return tomllib.load(fh)
 
 
-    # Check if dependencies are installed
-    if info["has_pyproject"]:
-        success, stdout, stderr = await run_uv_command(["pip", "list"], cwd=project_dir)
-        if success:
-            lines = stdout.strip().split("\n")
-            # header is usually 2 lines (header + separator), or just valid packages
-            # uv pip list format: Package Version ...
-            # We count non-empty lines, subtracting header if present
-            count = 0
-            for line in lines:
-                if line.strip() and not line.startswith("Package") and not line.startswith("---"):
-                    count += 1
-            installed_packages = count
-        else:
-            warnings.append("Could not list installed packages")
-
-    return DependencyCheck(
-        healthy=healthy,
-        issues=issues,
-        warnings=warnings,
-        installed_packages=installed_packages,
-    )
+def find_project_root(start: Path) -> Path | None:
+    """Nearest directory at or above ``start`` that holds a pyproject.toml."""
+    for candidate in (start, *start.parents):
+        if (candidate / "pyproject.toml").is_file():
+            return candidate
+    return None
 
 
-async def check_python_version(project_dir: Path | None = None) -> PythonCheck:
-    """
-    Validate Python version requirements.
+def _workspace_members(root: Path, workspace: dict[str, Any]) -> list[Path]:
+    members: set[Path] = set()
+    for pattern in workspace.get("members", []) or []:
+        if isinstance(pattern, str):
+            members.update(p.resolve() for p in root.glob(pattern) if (p / "pyproject.toml").is_file())
+    for pattern in workspace.get("exclude", []) or []:
+        if isinstance(pattern, str):
+            members.difference_update(p.resolve() for p in root.glob(pattern))
+    return sorted(members)
 
-    Args:
-        project_dir: Project directory (defaults to current directory)
 
-    Returns:
-        PythonCheck with Python version validation results
-    """
-
-    if project_dir is None:
-        project_dir = Path.cwd().resolve()
-    else:
-        project_dir = project_dir.resolve()
-
-    compatible = True
-    current_version = "unknown"
-    source = "unknown"
-    issues = []
-    warnings = []
-    required_version = None
-
-    info = get_project_info(project_dir)
-    required = info.get("python_version")
-
-    # Check the actual python version in the environment
-    # Try using 'uv run python --version' which runs in the project's environment
-    success, stdout, stderr = await run_uv_command(
-        ["run", "python", "--version"], cwd=project_dir
-    )
-
-    if success:
-        # Output is like "Python 3.12.0"
+def find_workspace_root(project: Path) -> Path | None:
+    """Return the workspace root that contains ``project`` (which may be ``project`` itself)."""
+    for candidate in (project, *project.parents):
+        pyproject = candidate / "pyproject.toml"
+        if not pyproject.is_file():
+            continue
         try:
-             version_str = stdout.strip().split()[-1]
-             current_version = version_str
-             source = "virtual_env"
-        except IndexError:
-             warnings.append("Could not parse python version output")
-    else:
-        # Fallback to system python check if uv run fails (e.g. no venv yet)
-        # But report that we are falling back
-        warnings.append(
-            "Could not determine project Python version (env might be missing)"
+            workspace = _read_toml(pyproject).get("tool", {}).get("uv", {}).get("workspace")
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+        if isinstance(workspace, dict) and (
+            candidate == project or project in _workspace_members(candidate, workspace)
+        ):
+            return candidate
+    return None
+
+
+def _stringify(items: Any) -> list[str]:
+    out: list[str] = []
+    for item in items or []:
+        if isinstance(item, str):
+            out.append(item)
+        elif isinstance(item, dict) and "include-group" in item:
+            out.append(f"(include-group: {item['include-group']})")
+        else:
+            out.append(str(item))
+    return out
+
+
+def _venv_python(venv: Path) -> Path:
+    return venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+
+
+def inspect_environment(venv: Path) -> EnvironmentInfo:
+    cfg = venv / "pyvenv.cfg"
+    info = EnvironmentInfo(path=str(venv), exists=cfg.is_file())
+    if not info.exists:
+        return info
+    try:
+        for line in cfg.read_text(encoding="utf-8", errors="replace").splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() in ("version_info", "version") and value.strip():
+                info.python_version = value.strip()
+    except OSError:
+        pass
+    python = _venv_python(venv)
+    info.python_path = str(python) if python.exists() else None
+    return info
+
+
+def project_info(start: Path) -> ProjectInfo:
+    """Collect facts about the project at or above ``start`` without running uv."""
+    root = find_project_root(start)
+    if root is None:
+        return ProjectInfo(
+            project_dir=str(start),
+            has_pyproject=False,
+            has_requirements_txt=(start / "requirements.txt").is_file(),
         )
-        source = "system_fallback"
-        current_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        warnings.append(f"Using system Python {current_version} for comparison")
+    info = ProjectInfo(project_dir=str(root), has_pyproject=True)
+    info.has_requirements_txt = (root / "requirements.txt").is_file()
+    try:
+        data = _read_toml(root / "pyproject.toml")
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        info.parse_error = str(exc)
+        return info
 
-    if required and required != "unknown":
-        required_version = str(required)
+    project = data.get("project", {}) if isinstance(data.get("project"), dict) else {}
+    tool_uv = data.get("tool", {}).get("uv", {}) if isinstance(data.get("tool"), dict) else {}
+    info.name = project.get("name")
+    info.version = project.get("version")
+    info.dynamic = _stringify(project.get("dynamic"))
+    info.requires_python = project.get("requires-python")
+    info.dependencies = _stringify(project.get("dependencies"))
+    info.optional_dependencies = {k: _stringify(v) for k, v in (project.get("optional-dependencies") or {}).items()}
+    groups = {k: _stringify(v) for k, v in (data.get("dependency-groups") or {}).items()}
+    legacy_dev = tool_uv.get("dev-dependencies")
+    if legacy_dev:
+        groups.setdefault("dev", []).extend(_stringify(legacy_dev))
+    info.dependency_groups = groups
+    info.scripts = {k: str(v) for k, v in (project.get("scripts") or {}).items()}
+    build_system = data.get("build-system") or {}
+    info.build_backend = build_system.get("build-backend")
+    package_flag = tool_uv.get("package")
+    info.is_package = bool(package_flag) if package_flag is not None else bool(build_system)
 
-        # specific version check logic could be improved with 'packaging' library
-        # but for now we do string matching if exact version is required
-        if "==" in required:
-            try:
-                exact_version = required.split("==")[1].strip()
-                if current_version != "unknown" and exact_version not in current_version:
-                    compatible = False
-                    issues.append(
-                        f"Python version mismatch: need {exact_version}, have {current_version}"
+    workspace = tool_uv.get("workspace")
+    if isinstance(workspace, dict):
+        info.workspace_members = [str(p) for p in _workspace_members(root, workspace)]
+    ws_root = find_workspace_root(root) or root
+    info.workspace_root = str(ws_root) if ws_root != root else None
+
+    info.has_lockfile = (ws_root / "uv.lock").is_file()
+    for candidate in (root, *root.parents):
+        pin = candidate / ".python-version"
+        if pin.is_file():
+            with contextlib.suppress(OSError, IndexError):
+                info.python_version_file = pin.read_text(encoding="utf-8").strip().splitlines()[0]
+            break
+        if candidate == ws_root:
+            break
+
+    env_override = os.environ.get("UV_PROJECT_ENVIRONMENT")
+    venv = Path(env_override) if env_override else ws_root / ".venv"
+    if not venv.is_absolute():
+        venv = ws_root / venv
+    info.environment = inspect_environment(venv)
+    return info
+
+
+# --------------------------------------------------------------------------- #
+# Health check
+# --------------------------------------------------------------------------- #
+
+
+def _network_failure(text: str) -> bool:
+    lowered = text.lower()
+    return any(s in lowered for s in ("error sending request", "failed to fetch", "dns error", "connection", "offline"))
+
+
+def _unsupported(text: str) -> bool:
+    lowered = text.lower()
+    return "unexpected argument" in lowered or "unrecognized subcommand" in lowered
+
+
+async def diagnose(start: Path, settings: Settings) -> DiagnosticReport:
+    findings: list[Finding] = []
+    checks: list[str] = []
+
+    def add(severity: str, check: str, message: str, fix: str | None = None) -> None:
+        findings.append(Finding(severity=severity, check=check, message=message, fix=fix))  # type: ignore[arg-type]
+
+    uv_path = settings.resolve_uv()
+    checks.append("uv")
+    uv_version = None
+    if uv_path is None:
+        add("error", "uv", "uv is not installed or not on PATH.", "Install uv (uv_info lists the official commands).")
+        return DiagnosticReport(project_dir=str(start), overall="error", findings=findings, checks_run=checks)
+    ver = await run_uv(["--version"], settings=settings)
+    uv_version = ver.stdout.strip() or None
+
+    info = project_info(start)
+    checks.append("project")
+    if not info.has_pyproject:
+        fix = "uv_init to create a project"
+        if info.has_requirements_txt:
+            fix = "uv_init, then uv_add with extra_args=['-r', 'requirements.txt'] to migrate requirements.txt"
+        add("error", "project", f"No pyproject.toml found at or above {start}.", fix)
+        return _report(start, uv_version, info, findings, checks)
+    project_dir = Path(info.project_dir)
+    lock_dir = Path(info.workspace_root or info.project_dir)
+
+    checks.append("pyproject")
+    if info.parse_error:
+        add(
+            "error",
+            "pyproject",
+            f"pyproject.toml is not valid TOML: {info.parse_error}",
+            "Fix the syntax error in pyproject.toml.",
+        )
+        return _report(project_dir, uv_version, info, findings, checks)
+    if info.name is None and info.workspace_members == []:
+        add(
+            "warning", "pyproject", "pyproject.toml has no [project] table, so uv treats it as a non-project workspace."
+        )
+    if info.name is not None and not info.requires_python:
+        add(
+            "warning",
+            "requires_python",
+            "[project] has no requires-python; resolution may pick incompatible versions.",
+            "Add requires-python (e.g. '>=3.12') to pyproject.toml.",
+        )
+
+    checks.append("interpreter")
+    find = await run_uv(["python", "find"], cwd=project_dir, settings=settings)
+    if not find.success:
+        add(
+            "error",
+            "interpreter",
+            "No Python interpreter satisfies the project's requirements: " + _first_line(find.stderr),
+            "uv_python_install (no versions) installs the version the project needs.",
+        )
+
+    checks.append("lockfile")
+    if not info.has_lockfile:
+        add("warning", "lockfile", "uv.lock does not exist, so installs are not reproducible.", "uv_lock")
+    else:
+        lock = await run_uv(["lock", "--check"], cwd=lock_dir, settings=settings)
+        if not lock.success:
+            if _network_failure(lock.stderr):
+                add("info", "lockfile", "Could not verify uv.lock (network unavailable).")
+            else:
+                add("warning", "lockfile", "uv.lock is out of date with pyproject.toml.", "uv_lock")
+
+    checks.append("venv")
+    env = info.environment
+    if env is None or not env.exists:
+        add("warning", "venv", "The project environment (.venv) does not exist.", "uv_sync")
+    elif env.python_path is None:
+        add("error", "venv", f"The environment at {env.path} has no Python executable; it is broken.", "uv_repair")
+    else:
+        probe = await run_uv(
+            ["pip", "list", "--python", env.path, "--format", "json"], cwd=project_dir, settings=settings
+        )
+        if not probe.success:
+            add("error", "venv", f"The environment at {env.path} is unusable: {_first_line(probe.stderr)}", "uv_repair")
+        else:
+            checks.append("sync")
+            sync_args = ["sync", "--check"] + (["--frozen"] if info.has_lockfile else [])
+            sync = await run_uv(sync_args, cwd=project_dir, settings=settings)
+            if not sync.success and not _unsupported(sync.stderr):
+                if _network_failure(sync.stderr):
+                    add("info", "sync", "Could not verify that the environment matches uv.lock (network unavailable).")
+                else:
+                    add(
+                        "warning",
+                        "sync",
+                        "The environment does not match uv.lock (missing or extra packages).",
+                        "uv_sync",
                     )
-            except IndexError:
-                pass 
-        elif ">=" in required:
-            # Just a warning for now as we don't fully parse semver here
-            pass
+            checks.append("dependencies")
+            check = await run_uv(["pip", "check", "--python", env.path], cwd=project_dir, settings=settings)
+            if not check.success:
+                detail = (check.stdout or check.stderr).strip()
+                add(
+                    "error",
+                    "dependencies",
+                    f"Installed packages have broken requirements: {detail[:500]}",
+                    "uv_sync with reinstall=true",
+                )
 
-    return PythonCheck(
-        compatible=compatible,
-        current_version=current_version,
-        source=source,
-        issues=issues,
-        warnings=warnings,
-        required_version=required_version,
-    )
+    return _report(project_dir, uv_version, info, findings, checks)
 
 
-def _get_worst_health(current: str, new: str) -> str:
-    """
-    Compare two health statuses and return the worse one.
-
-    Args:
-        current: Current health status
-        new: New health status to compare
-
-    Returns:
-        The worse of the two statuses
-    """
-    severity = {"healthy": 0, "warning": 1, "critical": 2}
-    current_severity = severity.get(current, 0)
-    new_severity = severity.get(new, 0)
-    return current if current_severity >= new_severity else new
+def _first_line(text: str) -> str:
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("warning:"):
+            return line
+    return text.strip()
 
 
-async def generate_diagnostic_report(
-    project_dir: Path | None = None,
+def _report(
+    project_dir: Path, uv_version: str | None, info: ProjectInfo | None, findings: list[Finding], checks: list[str]
 ) -> DiagnosticReport:
-    """
-    Generate a comprehensive environment health report.
-
-    Args:
-        project_dir: Project directory (defaults to current directory)
-
-    Returns:
-        DiagnosticReport
-    """
-    # Use validate_project_path to normalize but handle exception gracefully since 
-    # we want to return a report even if directory is invalid (containing error info)
-    if project_dir is None:
-        project_dir = Path.cwd().resolve()
-    else:
-        project_dir = Path(project_dir).resolve()
-
-    if not project_dir.exists():
-         return DiagnosticReport(
-            project_dir=str(project_dir),
-            overall_health="critical",
-            uv=UVInfo(installed=False, version="unknown"), 
-            critical_issues=[f"Project directory does not exist: {project_dir}"],
-        )
-
-    # Find project root
-    root = find_uv_project_root(project_dir)
-    if root:
-        project_dir = root
-
-    overall_health = "healthy"
-
-    # Check uv installation
-    uv_available, uv_version = await check_uv_available()
-    uv_info = UVInfo(installed=uv_available, version=uv_version)
-
-    if not uv_available:
-        return DiagnosticReport(
-            project_dir=str(project_dir),
-            overall_health="critical",
-            uv=uv_info,
-            critical_issues=["uv is not installed"],
-        )
-
-    # Check project structure
-    structure = check_project_structure(project_dir)
-
-    if not structure.valid:
-        overall_health = _get_worst_health(overall_health, "critical")
-    elif structure.warnings:
-        overall_health = _get_worst_health(overall_health, "warning")
-
-    # Check dependencies
-    dependencies = await check_dependencies(project_dir)
-
-    if not dependencies.healthy:
-        overall_health = _get_worst_health(overall_health, "critical")
-
-    # Check Python version
-    python_check = await check_python_version(project_dir)
-
-    if not python_check.compatible:
-        overall_health = _get_worst_health(overall_health, "critical")
-
-    # Check virtual environment
-    venv_exists, venv_path = check_project_venv(project_dir)
-    virtual_env = VirtualEnvInfo(
-        active=venv_exists,
-        path=venv_path,
-    )
-
-    # Get project info
-    info_dict = get_project_info(project_dir)
-    project_info = ProjectInfo(**info_dict)
-
+    worst = max((_SEVERITY[f.severity] for f in findings), default=0)
+    overall = {0: "healthy", 1: "warning", 2: "error"}[worst]
     return DiagnosticReport(
         project_dir=str(project_dir),
-        overall_health=overall_health,
-        uv=uv_info,
-        structure=structure,
-        dependencies=dependencies,
-        python=python_check,
-        virtual_env=virtual_env,
-        project_info=project_info,
+        overall=overall,
+        uv_version=uv_version,
+        project=info,
+        findings=findings,
+        checks_run=checks,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Repair
+# --------------------------------------------------------------------------- #
+
+
+async def repair(start: Path, settings: Settings, *, dry_run: bool) -> RepairResult:
+    report = await diagnose(start, settings)
+    project_dir = Path(report.project_dir)
+    by_check = {f.check: f for f in report.findings if f.severity != "info"}
+    steps: list[tuple[str, str, list[str], Path]] = []
+
+    if "uv" in by_check or "project" in by_check or "pyproject" in by_check:
+        return RepairResult(
+            project_dir=str(project_dir), success=False, dry_run=dry_run, remaining_findings=report.findings
+        )
+    lock_dir = Path(report.project.workspace_root or report.project.project_dir) if report.project else project_dir
+
+    if "interpreter" in by_check:
+        steps.append(("install_python", by_check["interpreter"].message, ["python", "install"], project_dir))
+    if "venv" in by_check and by_check["venv"].severity == "error" and report.project and report.project.environment:
+        steps.append(
+            ("recreate_venv", by_check["venv"].message, ["venv", "--clear", report.project.environment.path], lock_dir)
+        )
+    if "lockfile" in by_check:
+        steps.append(("lock", by_check["lockfile"].message, ["lock"], lock_dir))
+    if "dependencies" in by_check:
+        steps.append(("sync", by_check["dependencies"].message, ["sync", "--reinstall"], project_dir))
+    elif {"venv", "sync", "lockfile", "interpreter"} & by_check.keys():
+        reason = next(by_check[k].message for k in ("venv", "sync", "lockfile", "interpreter") if k in by_check)
+        steps.append(("sync", reason, ["sync"], project_dir))
+
+    from .runner import format_command
+
+    results: list[RepairStep] = []
+    success = True
+    for name, reason, argv, cwd in steps:
+        if dry_run:
+            results.append(RepairStep(step=name, reason=reason, status="planned", command=format_command(argv)))
+            continue
+        if not success:
+            results.append(RepairStep(step=name, reason=reason, status="skipped", command=format_command(argv)))
+            continue
+        res = await run_uv(argv, cwd=cwd, mutating=True, settings=settings)
+        success = res.success
+        results.append(
+            RepairStep(
+                step=name,
+                reason=reason,
+                status="success" if res.success else "failed",
+                command=res.command,
+                output=(res.stderr or res.stdout).strip()[-2000:] or None,
+            )
+        )
+
+    remaining = report.findings if dry_run else (await diagnose(project_dir, settings)).findings
+    remaining_problems = [f for f in remaining if f.severity != "info"]
+    return RepairResult(
+        project_dir=str(project_dir),
+        success=success and (dry_run or not remaining_problems),
+        dry_run=dry_run,
+        steps=results,
+        remaining_findings=remaining,
     )

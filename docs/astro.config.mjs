@@ -8,12 +8,12 @@ export default defineConfig({
   base: "/uv-mcp",
   integrations: [
     starlight({
-      title: "UV-MCP",
+      title: "uv-mcp",
       components: {
         Footer: "./src/components/Footer.astro",
       },
       description:
-        "UV-MCP is a Model Context Protocol (MCP) server that exposes 45 typed tools for uv, the extremely fast Python package manager. Built by Saadman Rafat (saadman.dev).",
+        "uv-mcp is the Model Context Protocol (MCP) server for uv: it gives Claude, Codex, Gemini and any MCP agent the full uv toolchain as safe, typed tools. Built by Saadman Rafat (saadman.dev).",
       favicon: "/favicon.svg",
       head: [
         {
@@ -22,7 +22,7 @@ export default defineConfig({
         },
         {
           tag: "meta",
-          attrs: { property: "og:site_name", content: "UV-MCP" },
+          attrs: { property: "og:site_name", content: "uv-mcp" },
         },
         {
           tag: "meta",
@@ -43,7 +43,7 @@ export default defineConfig({
           tag: "meta",
           attrs: {
             name: "twitter:title",
-            content: "UV-MCP — Stop Shop for Python Environment Management",
+            content: "uv-mcp: the full uv toolchain for AI coding agents",
           },
         },
         {
@@ -51,7 +51,7 @@ export default defineConfig({
           attrs: {
             name: "twitter:description",
             content:
-              "45 typed MCP tools covering 100% of the uv CLI surface area. Built by Saadman Rafat.",
+              "Projects, dependencies, Python versions, virtual environments and tools for Claude, Codex and Gemini. One command: uvx uv-mcp-server.",
           },
         },
         {
@@ -74,6 +74,9 @@ export default defineConfig({
             { label: "Introduction", link: "/guides/introduction/" },
             { label: "Installation", link: "/guides/installation/" },
             { label: "Usage", link: "/guides/usage/" },
+            { label: "Configuration", link: "/guides/configuration/" },
+            { label: "Security", link: "/guides/security/" },
+            { label: "Troubleshooting", link: "/guides/troubleshooting/" },
           ],
         },
         {
@@ -90,6 +93,7 @@ export default defineConfig({
           items: [
             { label: "Architecture", link: "/guides/architecture/" },
             { label: "Contributing", link: "/guides/contributing/" },
+            { label: "Changelog", link: "/guides/changelog/" },
           ],
         },
         {

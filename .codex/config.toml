@@ -1,8 +1,5 @@
-[mcp_servers.uv-mcp]
+# Development config: runs uv-mcp from this checkout when Codex is opened in the repo.
+# End users should follow https://saadman.dev/uv-mcp/guides/installation/ instead.
+[mcp_servers.uv]
 command = "uv"
-args    = ["run", "uv-mcp"]
-enabled = true
-
-[mcp_servers.uv-mcp.env]
-UV_COLOR = "never"
-TERM     = "dumb"
+args = ["run", "--quiet", "uv-mcp-server"]

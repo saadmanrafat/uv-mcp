@@ -1,440 +1,294 @@
-from datetime import datetime
+"""Structured results returned by uv-mcp tools.
+
+Every tool that shells out to uv returns a :class:`CommandResult` (or a subclass
+that adds parsed fields). The shape is deliberately uniform so an agent can rely
+on ``success``, ``exit_code``, ``stdout``, ``stderr`` and ``hint`` everywhere.
+When uv's output has been fully parsed into typed fields, ``stdout`` is left
+empty to save context.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 
-class UVCheckResult(BaseModel):
-    installed: bool
+class CommandResult(BaseModel):
+    """Outcome of a single uv invocation."""
+
+    success: bool = Field(description="True when uv exited with status 0.")
+    command: str = Field(description="The uv command that ran (secrets redacted).")
+    cwd: str = Field(description="Directory the command ran in.")
+    exit_code: int | None = Field(
+        default=None, description="Process exit status; null if uv could not be started or timed out."
+    )
+    stdout: str = ""
+    stderr: str = ""
+    duration_seconds: float = 0.0
+    timed_out: bool = False
+    truncated: bool = Field(default=False, description="True when stdout/stderr were shortened.")
+    hint: str | None = Field(default=None, description="Suggested next step when something failed.")
+
+
+# --------------------------------------------------------------------------- #
+# Project
+# --------------------------------------------------------------------------- #
+
+
+class InitResult(CommandResult):
+    path: str = Field(description="The project directory (or script file) that was created.")
+
+
+class VersionResult(CommandResult):
+    package_name: str | None = None
     version: str | None = None
-    message: str
-    installation_instructions: dict[str, str] | None = None
+    previous_version: str | None = None
 
 
-class InstallMethod(BaseModel):
-    command: str
-    description: str
+class BuildResult(CommandResult):
+    out_dir: str | None = None
+    artifacts: list[str] = Field(default_factory=list, description="Absolute paths of built files.")
 
 
-class InstallInstructions(BaseModel):
-    message: str
-    methods: dict[str, InstallMethod | dict[str, InstallMethod]]
-    verification: InstallMethod
-    documentation: str
+class ExportResult(CommandResult):
+    output_file: str | None = None
 
 
-class RepairAction(BaseModel):
-    action: str
-    description: str | None = None
-    status: str | None = None
-    output: str | None = None
-    error: str | None = None
-    reason: str | None = None
+class AuditResult(CommandResult):
+    report: Any | None = Field(default=None, description="Parsed JSON report, when available.")
 
 
-class RepairResult(BaseModel):
-    project_dir: str
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    actions: list[RepairAction] = []
-    success: bool
-    project_root: str | None = None
-    error: str | None = None
+class WorkspaceListResult(CommandResult):
+    members: list[str] = Field(default_factory=list, description="Member names (or paths, or scripts).")
 
 
-class DependencyOperationResult(BaseModel):
-    package: str
-    project_dir: str
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    success: bool
-    dev: bool = False
-    optional: str | None = None
-    message: str | None = None
-    output: str | None = None
-    error: str | None = None
-
-
-class StructureCheck(BaseModel):
-    valid: bool
-    issues: list[str] = []
-    warnings: list[str] = []
-
-
-class DependencyCheck(BaseModel):
-    healthy: bool
-    issues: list[str] = []
-    warnings: list[str] = []
-    installed_packages: int | None = None
-
-
-class PythonCheck(BaseModel):
-    compatible: bool
-    current_version: str = "unknown"
-    source: str = "unknown"
-    issues: list[str] = []
-    warnings: list[str] = []
-    required_version: str | None = None
-
-
-class UVInfo(BaseModel):
-    installed: bool
-    version: str | None = None
-
-
-class VirtualEnvInfo(BaseModel):
-    active: bool
+class WorkspaceDirResult(CommandResult):
     path: str | None = None
 
 
-class ProjectInfo(BaseModel):
-    has_pyproject: bool
-    has_requirements: bool
-    has_lockfile: bool
-    project_dir: str
-    project_name: str | None = None
+class WorkspaceMetadataResult(CommandResult):
+    metadata: Any | None = Field(default=None, description="Parsed workspace metadata (uv's JSON, preview schema).")
+
+
+# --------------------------------------------------------------------------- #
+# Python
+# --------------------------------------------------------------------------- #
+
+
+class PythonInstallation(BaseModel):
+    key: str
+    version: str
+    implementation: str | None = None
+    path: str | None = Field(default=None, description="Interpreter path; null if only downloadable.")
+    managed: bool | None = Field(default=None, description="True if installed and managed by uv.")
+    url: str | None = None
+    variant: str | None = None
+
+
+class PythonListResult(CommandResult):
+    installations: list[PythonInstallation] = Field(default_factory=list)
+
+
+class PythonFindResult(CommandResult):
+    path: str | None = None
+
+
+class PythonPinResult(CommandResult):
+    pinned: str | None = Field(default=None, description="The pinned version request, if any.")
+
+
+# --------------------------------------------------------------------------- #
+# pip
+# --------------------------------------------------------------------------- #
+
+
+class InstalledPackage(BaseModel):
+    name: str
+    version: str
+    latest_version: str | None = None
+    latest_filetype: str | None = None
+    editable_project_location: str | None = None
+
+
+class PipListResult(CommandResult):
+    packages: list[InstalledPackage] = Field(default_factory=list)
+
+
+class PackageDetails(BaseModel):
+    name: str
+    version: str | None = None
+    location: str | None = None
+    editable_project_location: str | None = None
+    requires: list[str] = Field(default_factory=list)
+    required_by: list[str] = Field(default_factory=list)
+    files: list[str] = Field(default_factory=list)
+    fields: dict[str, str] = Field(default_factory=dict, description="Every raw field uv reported.")
+
+
+class PipShowResult(CommandResult):
+    packages: list[PackageDetails] = Field(default_factory=list)
+
+
+class PipCompileResult(CommandResult):
+    output_file: str | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Tools
+# --------------------------------------------------------------------------- #
+
+
+class InstalledTool(BaseModel):
+    name: str
+    version: str | None = None
+    executables: list[str] = Field(default_factory=list)
+    path: str | None = None
+    latest_version: str | None = None
+
+
+class ToolListResult(CommandResult):
+    tools: list[InstalledTool] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Environment / meta
+# --------------------------------------------------------------------------- #
+
+
+class VenvResult(CommandResult):
+    path: str
+
+
+class CacheSizeResult(CommandResult):
+    size_bytes: int | None = None
+    human: str | None = None
+
+
+class SelfUpdateResult(CommandResult):
+    previous_version: str | None = None
+    new_version: str | None = None
+
+
+class UVDirectories(BaseModel):
+    cache: str | None = None
+    python_installs: str | None = None
+    python_bin: str | None = None
+    tools: str | None = None
+    tool_bin: str | None = None
+    credentials: str | None = None
+
+
+class OptionInfo(BaseModel):
+    flag: str
+    short: str | None = None
+    value: str | None = Field(default=None, description="Value placeholder; null for on/off flags.")
+    choices: list[str] = Field(default_factory=list)
+    env: str | None = Field(default=None, description="Environment variable that sets the same option.")
+    scope: Literal["command", "global"] = "command"
+    description: str = ""
+    via: Literal["parameter", "resolver", "extra_args"] = Field(
+        default="extra_args",
+        description="How to pass it with uv-mcp: a dedicated tool parameter, the `resolver` object, or extra_args.",
+    )
+
+
+class HelpResult(BaseModel):
+    command: str = Field(description="The uv command described, e.g. 'uv pip install'.")
+    summary: str = ""
+    usage: str = ""
+    tool: str | None = Field(default=None, description="The uv-mcp tool that runs this command.")
+    subcommands: dict[str, str] = Field(default_factory=dict)
+    options: list[OptionInfo] = Field(default_factory=list)
+    total_options: int = 0
+    uv_version: str | None = None
+
+
+class ServerInfo(BaseModel):
+    """Everything an agent needs to orient itself before calling other tools."""
+
+    server_version: str
+    uv_installed: bool
+    uv_version: str | None = None
+    uv_path: str | None = None
+    platform: str
+    workspace_root: str
+    workspace_is_project: bool = Field(description="True if workspace_root (or a parent) has a pyproject.toml.")
+    read_only: bool
+    toolsets: list[str]
+    allowed_roots: list[str] = Field(default_factory=list)
+    directories: UVDirectories | None = None
+    install_instructions: dict[str, str] | None = Field(default=None, description="Present only when uv is missing.")
+    notes: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Diagnostics
+# --------------------------------------------------------------------------- #
+
+Severity = Literal["info", "warning", "error"]
+
+
+class Finding(BaseModel):
+    severity: Severity
+    check: str
+    message: str
+    fix: str | None = Field(default=None, description="Suggested remedy, usually a uv-mcp tool call.")
+
+
+class EnvironmentInfo(BaseModel):
+    path: str
+    exists: bool
     python_version: str | None = None
-    dependencies: list[str] = []
+    python_path: str | None = None
+
+
+class ProjectInfo(BaseModel):
+    """Static facts read from pyproject.toml and the project tree (no network)."""
+
+    project_dir: str
+    has_pyproject: bool
+    name: str | None = None
+    version: str | None = None
+    dynamic: list[str] = Field(default_factory=list)
+    requires_python: str | None = None
+    dependencies: list[str] = Field(default_factory=list)
+    optional_dependencies: dict[str, list[str]] = Field(default_factory=dict)
+    dependency_groups: dict[str, list[str]] = Field(default_factory=dict)
+    scripts: dict[str, str] = Field(default_factory=dict)
+    build_backend: str | None = None
+    is_package: bool | None = Field(
+        default=None, description="True if the project is built and installed as a package."
+    )
+    workspace_members: list[str] = Field(default_factory=list, description="Resolved member directories.")
+    workspace_root: str | None = Field(default=None, description="Enclosing workspace root, if any.")
+    has_lockfile: bool = False
+    python_version_file: str | None = Field(default=None, description="Contents of .python-version.")
+    has_requirements_txt: bool = False
+    environment: EnvironmentInfo | None = None
     parse_error: str | None = None
-
-
-class DiagnosticReportSummary(BaseModel):
-    overall_health: str
-    issues_count: int
-    warnings_count: int
 
 
 class DiagnosticReport(BaseModel):
     project_dir: str
-    timestamp: str | None = None
-    overall_health: str
-    uv: UVInfo | None = None
-    structure: StructureCheck | None = None
-    dependencies: DependencyCheck | None = None
-    python: PythonCheck | None = None
-    virtual_env: VirtualEnvInfo | None = None
-    project_info: ProjectInfo | None = None
-    critical_issues: list[str] = []
-    summary: DiagnosticReportSummary | None = None
+    overall: Literal["healthy", "warning", "error"]
+    uv_version: str | None = None
+    project: ProjectInfo | None = None
+    findings: list[Finding] = Field(default_factory=list)
+    checks_run: list[str] = Field(default_factory=list)
 
 
-class PythonVersion(BaseModel):
-    version: str
-    path: str | None = None
-    origin: str | None = None
-
-
-class PythonListResult(BaseModel):
-    versions: list[PythonVersion]
-    output: str
-
-
-class PythonInstallResult(BaseModel):
-    version: str
-    success: bool
+class RepairStep(BaseModel):
+    step: str
+    reason: str
+    status: Literal["planned", "success", "failed", "skipped"]
+    command: str | None = None
     output: str | None = None
-    error: str | None = None
 
 
-class PythonPinResult(BaseModel):
-    version: str
+class RepairResult(BaseModel):
     project_dir: str
     success: bool
-    output: str | None = None
-    error: str | None = None
-
-
-class DependencyItem(BaseModel):
-    name: str
-    version: str
-    editable: bool = False
-    location: str | None = None
-    installer: str | None = None
-
-
-class DependencyListResult(BaseModel):
-    project_dir: str
-    dependencies: list[DependencyItem] = []
-    tree_output: str | None = None
-    is_tree: bool
-    count: int
-    success: bool
-    error: str | None = None
-
-
-class PackageInfoResult(BaseModel):
-    name: str
-    version: str | None = None
-    location: str | None = None
-    requires: list[str] = []
-    required_by: list[str] = []
-    metadata: dict[str, str] = {}  # License, Author, etc.
-    success: bool
-    error: str | None = None
-
-
-class OutdatedPackage(BaseModel):
-    name: str
-    version: str
-    latest_version: str
-    type: str | None = None  # e.g., "wheel", "sdist"
-
-
-class OutdatedCheckResult(BaseModel):
-    project_dir: str
-    outdated_packages: list[OutdatedPackage]
-    count: int
-    success: bool
-    error: str | None = None
-
-
-class TreeAnalysisResult(BaseModel):
-    project_dir: str
-    tree_output: str
-    depth: int | None = None
-    success: bool
-    error: str | None = None
-
-
-class ProjectInitResult(BaseModel):
-    """Result of project initialization."""
-
-    project_name: str
-    project_dir: str
-    python_version: str
-    template: str  # "app" or "lib"
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
-    created_files: list[str] = []  # ["pyproject.toml", ".python-version", ...]
-
-
-class SyncResult(BaseModel):
-    """Result of environment sync operation."""
-
-    project_dir: str
-    success: bool
-    upgraded: bool = False  # Was --upgrade used?
-    locked: bool = False  # Was --locked used?
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    packages_installed: int | None = None
-    packages_updated: int | None = None
-    message: str | None = None
-    output: str | None = None
-    error: str | None = None
-
-
-class ExportResult(BaseModel):
-    """Result of requirements export operation."""
-
-    project_dir: str
-    file_format: str  # "requirements-txt", etc.
-    output_file: str | None = None  # If file was written
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    content: str | None = None  # If exported to stdout
-    line_count: int | None = None
-    message: str | None = None
-    error: str | None = None
-
-
-class BuildResult(BaseModel):
-    """Result of package build operation."""
-
-    project_dir: str
-    output_dir: str
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    artifacts: list[str] = (
-        []
-    )  # ["dist/myapp-0.1.0.tar.gz", "dist/myapp-0.1.0-py3-none-any.whl"]
-    message: str | None = None
-    error: str | None = None
-
-
-class CacheOperationResult(BaseModel):
-    """Result of cache operations."""
-
-    operation: str = "clean"  # "clean", "prune", "info"
-    package: str | None = None  # Specific package if applicable
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    cache_size_before: str | None = None  # "1.2 GB"
-    cache_size_after: str | None = None  # "500 MB"
-    space_freed: str | None = None  # "700 MB"
-    message: str | None = None
-    output: str | None = None
-    error: str | None = None
-
-
-class EphemeralToolResult(BaseModel):
-    """Result of running an ephemeral tool via uvx."""
-
-    package: str
-    command: list[str]
-    success: bool
-    stdout: str | None = None
-    stderr: str | None = None
-    return_code: int | None = None
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    error: str | None = None
-
-
-class WorkspaceMember(BaseModel):
-    """A single member of a uv workspace."""
-
-    name: str
-    path: str
-    dependencies: list[str] = []
-
-
-class WorkspaceManifest(BaseModel):
-    """Manifest describing a uv workspace tree."""
-
-    root: str
-    is_workspace: bool
-    members: list[WorkspaceMember] = []
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    error: str | None = None
-
-
-class HealingAction(BaseModel):
-    """A single self-healing action taken."""
-
-    action: str
-    status: str  # "success", "failed", "skipped"
-    output: str | None = None
-    error: str | None = None
-
-
-class SelfHealingDiagnostics(BaseModel):
-    """Result of self-healing environment diagnostics."""
-
-    success: bool
-    actions: list[HealingAction] = []
-    missing_packages: list[str] = []
-    recommendations: list[str] = []
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    error: str | None = None
-
-
-class VenvResult(BaseModel):
-    """Result of virtual environment creation."""
-
-    path: str
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
-
-
-class ScriptRunResult(BaseModel):
-    """Result of running a script or command via uv run."""
-
-    command: list[str]
-    success: bool
-    stdout: str | None = None
-    stderr: str | None = None
-    return_code: int | None = None
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    error: str | None = None
-
-
-class VersionResult(BaseModel):
-    """Result of reading or updating project version."""
-
-    version: str
-    previous_version: str | None = None
-    project_dir: str
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
-
-
-class FormatResult(BaseModel):
-    """Result of formatting Python code."""
-
-    project_dir: str
-    success: bool
-    files_formatted: int | None = None
-    check_only: bool = False
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
-
-
-class PipCompileResult(BaseModel):
-    """Result of compiling requirements.in to requirements.txt."""
-
-    input_file: str
-    output_file: str
-    success: bool
-    line_count: int | None = None
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    content: str | None = None
-    error: str | None = None
-
-
-class PipSyncResult(BaseModel):
-    """Result of syncing environment from requirements.txt."""
-
-    requirements_file: str
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
-
-
-class PipFreezeResult(BaseModel):
-    """Result of freezing installed packages."""
-
-    success: bool
-    requirements: str | None = None
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    error: str | None = None
-
-
-class ToolListResult(BaseModel):
-    """Result of listing installed uv tools."""
-
-    tools: list[str] = []
-    count: int = 0
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    output: str | None = None
-    message: str | None = None
-    error: str | None = None
-
-
-class CacheInfoResult(BaseModel):
-    """Result of cache introspection (dir, size)."""
-
-    operation: str  # "dir", "size", "prune"
-    path: str | None = None
-    size: str | None = None
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
-
-
-class PublishResult(BaseModel):
-    """Result of publishing distributions to an index."""
-
-    project_dir: str
-    files: list[str] = []
-    success: bool
-    dry_run: bool = False
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
-
-
-class SelfUpdateResult(BaseModel):
-    """Result of updating the uv binary."""
-
-    previous_version: str | None = None
-    new_version: str | None = None
-    success: bool
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str | None = None
-    error: str | None = None
+    dry_run: bool
+    steps: list[RepairStep] = Field(default_factory=list)
+    remaining_findings: list[Finding] = Field(default_factory=list)
