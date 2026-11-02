@@ -39,7 +39,9 @@ Thumbs.db
 
 # uv
 .uv/
-uv.lock
 
 # MCP
 *.log
+
+.coverage
+coverage.xml
