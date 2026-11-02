@@ -11,6 +11,7 @@ import inspect
 from pathlib import Path
 
 from uv_mcp.config import ALL_TOOLSETS, Settings
+from uv_mcp.coverage import COVERAGE, Blocked
 from uv_mcp.registry import REGISTRY
 from uv_mcp.server import create_server
 
@@ -71,6 +72,28 @@ def _badges(name: str) -> str:
     return " · ".join(badges)
 
 
+def _coverage_table() -> list[str]:
+    out = [
+        "## uv command coverage",
+        "",
+        "Every uv command and how uv-mcp exposes it. A test compares this table with the installed uv's",
+        "`--help` and fails when uv gains a command that is not listed.",
+        "",
+        "| uv command | uv-mcp |",
+        "|---|---|",
+    ]
+    for path, how in sorted(COVERAGE.items()):
+        if isinstance(how, Blocked):
+            cell = f"refused: {how.reason}"
+        elif how == "uv_info":
+            cell = "[`uv_info`](#uv_info) (reported in its output)"
+        else:
+            cell = f"[`{how}`](#{how})"
+        out.append(f"| `uv {' '.join(path)}` | {cell} |")
+    out.append("")
+    return out
+
+
 async def render() -> str:
     mcp = create_server(Settings(workspace_root=Path.cwd(), toolsets=frozenset(ALL_TOOLSETS)))
     tools = {t.name: t for t in await mcp.list_tools()}
@@ -95,6 +118,7 @@ async def render() -> str:
         '`extra_args: ["--no-build-isolation"]`. Commands with no dedicated tool are available through `uv_command`.',
         "",
     ]
+    lines += _coverage_table()
     order = [None, "diagnostics", *ALL_TOOLSETS]
     seen: set[str | None] = set()
     for toolset in order:

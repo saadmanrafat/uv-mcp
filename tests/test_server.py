@@ -105,10 +105,13 @@ def test_workspace_root_resolution_order(monkeypatch: pytest.MonkeyPatch, tmp_pa
     ("args", "message"),
     [
         (["auth", "token", "example.com"], "not allowed"),
+        (["auth", "-q", "token", "example.com"], "not allowed"),
+        (["auth", "--no-cache", "token", "example.com"], "not allowed"),
+        (["python", "--quiet", "update-shell"], "not allowed"),
         (["python", "update-shell"], "not allowed"),
         (["tool", "update-shell"], "not allowed"),
-        (["rm", "-rf", "/"], "Unknown uv subcommand"),
-        (["--directory", "/tmp", "sync"], "Unknown uv subcommand"),
+        (["--directory", "/tmp", "sync"], "must be a uv subcommand"),
+        (["../../bin/sh"], "must be a uv subcommand"),
     ],
 )
 async def test_uv_command_refuses_dangerous_input(client, args, message) -> None:

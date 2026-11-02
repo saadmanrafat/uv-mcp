@@ -12,11 +12,12 @@ Tool names now mirror the uv CLI. This is a breaking release: see the migration 
 
 - **Install with one command:** `uvx uv-mcp-server@latest`. The distribution is now named `uv-mcp-server`
   (matching PyPI). The old `uv-mcp` console script remains as an alias.
-- **Complete uv coverage:** 46 tools across projects, Python versions, the pip interface, virtual
+- **Complete uv coverage:** 50 tools across projects, Python versions, the pip interface, virtual
   environments, tools (`uvx`), packaging, cache, auth and uv itself. Every tool accepts `extra_args`, and
-  `uv_command` runs any other uv subcommand.
-- **New tools:** `uv_check` (type checking), `uv_audit` (vulnerability audit), `uv_pip_tree`,
-  `uv_pip_check`, `uv_auth_login`, `uv_auth_logout`, `uv_project_info`, `uv_command`.
+  `uv_command` runs any other uv subcommand. A coverage map plus a test against the installed uv's `--help`
+  guarantees every uv command is covered and flags new ones.
+- **New tools:** `uv_check` (type checking), `uv_audit` and `uv_tool_audit` (vulnerability audits),
+  `uv_workspace_list`, `uv_workspace_dir`, `uv_workspace_metadata`, `uv_pip_tree`, `uv_pip_check`, `uv_auth_login`, `uv_auth_logout`, `uv_project_info`, `uv_command`.
 - **Uniform results:** every command returns `success`, `exit_code` (the real one), `command`, `cwd`,
   `stdout`, `stderr`, `duration_seconds`, `timed_out`, `truncated` and an actionable `hint`. Lists of
   packages, Python installations and tools are parsed into typed fields.
