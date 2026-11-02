@@ -1,12 +1,12 @@
 ---
-title: "UV-MCP"
-description: "The Stop Shop MCP server for uv. 45 typed tools covering 100% of the uv CLI, built by Saadman Rafat (saadman.dev, x.com/saadmanrafat_)."
+title: "uv-mcp"
+description: "The uv MCP server: give Claude, Codex, Gemini and any MCP agent the full uv toolchain for Python projects, dependencies, interpreters and environments. By Saadman Rafat."
 template: splash
 hero:
-  tagline: "The Stop Shop for Python Environment Management"
+  tagline: "The full uv toolchain for AI coding agents. Projects, dependencies, Python versions, virtual environments and tools, as safe, typed MCP tools."
   actions:
-    - text: Get Started
-      link: /uv-mcp/guides/introduction/
+    - text: Install
+      link: /uv-mcp/guides/installation/
       icon: right-arrow
       variant: primary
     - text: View on GitHub
@@ -15,51 +15,37 @@ hero:
       variant: secondary
 ---
 
-## What is UV-MCP?
+## One command
 
-UV-MCP is a **Model Context Protocol (MCP)** server that maps natural language to typed `uv` commands. It gives AI assistants — Claude Code, OpenCode, Codex, Gemini CLI, and any MCP client — the ability to manage Python environments, dependencies, and project lifecycles without memorizing 45 different CLI flags.
+```bash
+claude mcp add --scope user --transport stdio uv -- uvx uv-mcp-server@latest
+```
 
-Instead of typing, you say:
+Or `codex mcp add uv -- uvx uv-mcp-server@latest`, or
+`gemini extensions install https://github.com/saadmanrafat/uv-mcp`.
+The only prerequisite is [uv](https://docs.astral.sh/uv/getting-started/installation/).
+[All clients](/uv-mcp/guides/installation/).
 
-> *"Create a virtual environment with seed packages, install requests, and run my script."*
+## What your agent gets
 
-UV-MCP handles the rest.
-
-## Works With
-
-| Client | Config file | Setup |
-|---|---|---|
-| **Claude Code** | `.mcp.json` | `claude mcp add uv-mcp -- uv run uv-mcp` |
-| **OpenCode** | `opencode.json` | `opencode.json` ships in the repo — open and it's active |
-| **Codex CLI** | `.codex/config.toml` | `codex mcp add uv-mcp -- uv run uv-mcp` |
-| **Gemini CLI** | `gemini-extension.json` | `gemini extensions install https://github.com/saadmanrafat/uv-mcp` |
-
-See the [Installation guide](/uv-mcp/guides/installation/) for the complete config for each client.
-
-## Key Features
-
-- **45 typed tools** — Every `uv` command is exposed as a structured, type-safe MCP tool with Pydantic models. From `uv add` to `uv publish`, nothing is left behind.
-- **Self-healing diagnostics** — Detects `ModuleNotFoundError`, suggests `uv add` fixes, and auto-syncs environments. Broken projects repair themselves.
-- **Workspace introspection** — Parses `[tool.uv.workspace]` from `pyproject.toml` and emits topological dependency graphs for monorepos.
-- **Ephemeral tool runner** — Run any CLI tool via `uv tool run` without permanent installation. Useful for one-off formatters, linters, and utilities.
-- **Concurrency safe** — `asyncio.Lock()` serializes mutating commands to prevent `uv.lock` deadlocks during concurrent AI tool calls.
-- **ANSI-free output** — Guaranteed clean, parseable streams by injecting `UV_COLOR=never` and `TERM=dumb` on every subprocess.
-
-## Tool Coverage
-
-| Category | Tools |
+| | |
 |---|---|
-| Project Lifecycle | `init`, `version`, `format`, `build`, `publish`, `lock` |
-| Dependencies | `add`, `remove`, `sync`, `tree`, `list`, `show`, `outdated`, `freeze` |
-| Python | `install`, `pin`, `find`, `upgrade`, `uninstall`, `dir` |
-| Virtual Env | `create`, `seed`, `relocatable`, `system-site-packages` |
-| Ephemeral | `run script`, `uvx proxy`, `temporary --with` |
-| Diagnostics | `check`, `repair`, `self-heal`, `workspace manifest` |
+| **Every uv command and option** | 51 tools named after the CLI (`uv_add`, `uv_sync`, `uv_run`, `uv_python_install`, `uv_tool_run`, `uv_pip_compile`...), validated `extra_args` for every other option, `uv_help` to discover any option, and `uv_command` for everything else. |
+| **Structured results** | `success`, `exit_code`, `stdout`, `stderr` and an actionable `hint` on failure; parsed package, Python and tool lists. |
+| **Diagnose and repair** | `uv_diagnose` checks interpreter, lockfile, `.venv` and package consistency; `uv_repair` fixes what it finds. |
+| **Secure by design** | No shell, argument-injection guards, secret redaction, honest MCP annotations, read-only mode, path confinement, dry-run publishing. |
+| **Runs in the right place** | Always your project's environment, never the server's own; `uv_info` shows exactly where. |
+| **Context-friendly** | Compact schemas, toolsets to load only what you need, bounded output. |
 
-## Next Steps
+## Works with
 
-- Read the [Introduction](/uv-mcp/guides/introduction/) to install and configure UV-MCP for your preferred client.
-- Explore the [Usage Guide](/uv-mcp/guides/usage/) for real-world workflows and command patterns.
-- Browse the [Tool Reference](/uv-mcp/reference/tools/) for complete API documentation.
+Claude Code, Codex CLI, Gemini CLI (as an extension), Claude Desktop, Cursor, VS Code, OpenCode, and any
+client that speaks MCP over stdio.
 
-Built with care by [Saadman Rafat](https://x.com/saadmanrafat_).
+## Learn more
+
+- [Introduction](/uv-mcp/guides/introduction/)
+- [Usage](/uv-mcp/guides/usage/)
+- [Configuration](/uv-mcp/guides/configuration/)
+- [Security](/uv-mcp/guides/security/)
+- [Tool reference](/uv-mcp/reference/tools/)

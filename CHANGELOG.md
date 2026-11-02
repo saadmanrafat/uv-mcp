@@ -1,5 +1,92 @@
 # Changelog
 
+## [2.0.0] - 2026-11-02
+
+A ground-up rewrite focused on correctness, security and being immediately useful to coding agents.
+Tool names now mirror the uv CLI. This is a breaking release: see the migration table below.
+
+### Highlights
+
+- **Install with one command:** `uvx uv-mcp-server@latest`. The distribution is now named `uv-mcp-server`
+  (matching PyPI). The old `uv-mcp` console script remains as an alias.
+- **Complete uv coverage:** 51 tools across projects, Python versions, the pip interface, virtual
+  environments, tools (`uvx`), packaging, cache, auth and uv itself. Every tool accepts `extra_args`, and
+  `uv_command` runs any other uv subcommand. A coverage map plus a test against the installed uv's `--help`
+  guarantees every uv command is covered and flags new ones.
+- **Every uv option:** about 300 of uv's ~1,060 command options are typed parameters (including a shared
+  `resolver` object for resolution strategy, pre-releases, exclude-newer, indexes, platform, no-build,
+  no-sources, offline). The rest go through `extra_args`, now validated against the installed uv's own
+  `--help`, so typos, missing values and invalid choices are rejected with suggestions. The new `uv_help` tool
+  lists any command's options, choices and env vars and says how to pass each one.
+- **New tools:** `uv_help` (option discovery), `uv_check` (type checking), `uv_audit` and `uv_tool_audit` (vulnerability audits),
+  `uv_workspace_list`, `uv_workspace_dir`, `uv_workspace_metadata`, `uv_pip_tree`, `uv_pip_check`, `uv_auth_login`, `uv_auth_logout`, `uv_project_info`, `uv_command`.
+- **Uniform results:** every command returns `success`, `exit_code` (the real one), `command`, `cwd`,
+  `stdout`, `stderr`, `duration_seconds`, `timed_out`, `truncated` and an actionable `hint`. Lists of
+  packages, Python installations and tools are parsed into typed fields.
+- **Diagnose and repair rewritten:** `uv_diagnose` checks the interpreter, `uv lock --check`, `.venv`
+  health, `uv sync --check` and `uv pip check`, with a suggested fix per finding. `uv_repair` plans and runs
+  the fixes (with `dry_run`) and re-diagnoses.
+- **Agent instructions:** the server sends MCP instructions telling models which tool to use when.
+
+### Security
+
+- No shell anywhere; option-like values are rejected wherever a name, version or path is expected.
+- Tokens and passwords go to uv through environment variables or stdin, never argv, and are redacted
+  from all output along with URL credentials, PyPI tokens and GitHub tokens. `uv auth token` is refused.
+- `uv_publish` is a dry run unless `dry_run=false` is passed.
+- Accurate MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`).
+- New `--read-only` mode, `UV_MCP_ALLOWED_ROOTS` path confinement, `UV_MCP_TOOLSETS` selection and
+  `--no-raw-command`.
+- Commands time out (default 600 s, configurable) and the whole process group is killed; stdin is closed
+  so uv can never hang on a prompt; mutating commands are serialised per project.
+
+### Fixed
+
+- `uv pip` tools acted on the server's own virtual environment when it was launched with `uv run` or
+  `uvx` (inherited `VIRTUAL_ENV`). It is now scrubbed.
+- Configurations using `uv --directory /path/to/uv-mcp` made every tool operate on the uv-mcp source tree.
+  The documented commands no longer change directory, the workspace root honours
+  `UV_MCP_WORKSPACE_ROOT` and `CLAUDE_PROJECT_DIR`, and the Gemini extension passes `${workspacePath}`.
+- `uv_tool_list` counted executables as tools.
+- Exit codes were always reported as 0 or 1.
+- `pytest` was a runtime dependency, and `fastmcp` was unpinned (`>=0.2.0`); it is now `>=4.1,<5`.
+- The documentation's installation instructions were wrong in several places (package name, Python
+  version, `codex trust`, client config files). They have been rewritten and checked.
+
+### Migration
+
+| 1.x tool | 2.0 tool |
+|---|---|
+| `uv_check_installation`, `uv_install`, `uv_self_version`, `uv_cache_dir`, `uv_python_dir` | `uv_info` |
+| `uv_diagnose_environment` | `uv_diagnose` |
+| `uv_repair_environment`, `uv_self_heal_environment` | `uv_repair` (after `uv_diagnose`) |
+| `uv_initialize_project` | `uv_init` |
+| `uv_add_dependency` / `uv_remove_dependency` | `uv_add` / `uv_remove` (take a list of `packages`) |
+| `uv_sync_environment` | `uv_sync` |
+| `uv_lock_project` | `uv_lock` |
+| `uv_export_requirements` | `uv_export` |
+| `uv_run_script` | `uv_run` |
+| `uv_run_ephemeral_tool` | `uv_tool_run` |
+| `uv_list_dependencies` | `uv_pip_list` or `uv_tree` |
+| `uv_analyze_dependency_tree` | `uv_tree` |
+| `uv_show_package_info` | `uv_pip_show` |
+| `uv_check_outdated_packages` | `uv_pip_list` with `outdated=true`, or `uv_tree` with `outdated=true` |
+| `uv_get_workspace_manifest` | `uv_project_info` |
+| `uv_create_venv` | `uv_venv` |
+| `uv_project_version` | `uv_version` (`bump` is now a list) |
+| `uv_format_code` | `uv_format` |
+| `uv_build_project` / `uv_publish_project` | `uv_build` / `uv_publish` |
+| `uv_pip_sync_requirements` | `uv_pip_sync` |
+| `uv_list_python_versions`, `uv_find_python` | `uv_python_list`, `uv_python_find` |
+| `uv_install_python_version`, `uv_upgrade_python_version`, `uv_uninstall_python_version` | `uv_python_install`, `uv_python_upgrade`, `uv_python_uninstall` |
+| `uv_pin_python_version` | `uv_python_pin` |
+| `uv_clear_cache`, `uv_prune_cache` | `uv_cache_clean`, `uv_cache_prune` |
+
+`uv_pip_compile`, `uv_pip_install`, `uv_pip_uninstall`, `uv_pip_freeze`, `uv_tool_install`,
+`uv_tool_upgrade`, `uv_tool_list`, `uv_tool_uninstall`, `uv_cache_size` and `uv_self_update` keep their
+names. Client configs should switch to `uvx uv-mcp-server@latest`; the example configs name the server
+`uv`, so Claude Code tool names become `mcp__uv__uv_add` and so on.
+
 ## [1.0.0] - 2026-05-16
 
 ### The Stop Shop Release — 100% uv CLI Coverage
@@ -216,7 +303,8 @@ This release expands UV-MCP from **22 → 45 MCP tools**, covering every command
 - 86 dependencies installed and tested
 - All tests passing
 
-[Unreleased]: https://github.com/saadmanrafat/uv-mcp/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/saadmanrafat/uv-mcp/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/saadmanrafat/uv-mcp/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/saadmanrafat/uv-mcp/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/saadmanrafat/uv-mcp/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/saadmanrafat/uv-mcp/compare/v0.6.4...v0.7.2
