@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import os
 import platform
 import re
@@ -12,8 +13,9 @@ from pydantic import Field
 
 from .. import __version__
 from ..config import get_settings
-from ..coverage import BLOCKED
-from ..models import CommandResult, SelfUpdateResult, ServerInfo, UVDirectories
+from ..coverage import BLOCKED, COVERAGE
+from ..flags import clear_cache, command_help
+from ..models import CommandResult, HelpResult, OptionInfo, SelfUpdateResult, ServerInfo, UVDirectories
 from ..parsing import last_line, load_json
 from ..registry import uv_tool
 from ..security import ValidationError, safe_extra_args, safe_value
@@ -125,10 +127,94 @@ async def uv_self_update(
     if target_version:
         args.argv.append(safe_value(target_version, "target_version"))
     result = await run(args, mutating=True, lock_key="global:self")
+    if result.success and not dry_run:
+        clear_cache()  # options may have changed with the new uv
     after = await _uv_version() if result.success and not dry_run else before
     if not result.success and "installed via" in (result.stderr + result.stdout).lower():
         result.hint = "uv was installed by a package manager; update it with that package manager instead."
     return extend(result, SelfUpdateResult, previous_version=before, new_version=after)
+
+
+# --------------------------------------------------------------------------- #
+# Option discovery
+# --------------------------------------------------------------------------- #
+
+_FLAG_LITERAL_RE = re.compile(r'"(--[a-z0-9][a-z0-9-]*)"')
+_RESOLVER_FLAGS = {
+    "--resolution", "--prerelease", "--exclude-newer", "--index", "--default-index", "--python-platform",
+    "--no-build", "--no-sources", "--offline",
+}  # fmt: skip
+
+
+def _tool_flags(tool: str) -> tuple[set[str], bool]:
+    """Flags a tool sets from its own parameters, and whether it takes the shared `resolver` options."""
+    from ..registry import REGISTRY
+
+    spec = REGISTRY.get(tool)
+    if spec is None:
+        return set(), False
+    try:
+        source = inspect.getsource(spec.fn)
+    except (OSError, TypeError):
+        source = ""
+    return set(_FLAG_LITERAL_RE.findall(source)), "resolver" in inspect.signature(spec.fn).parameters
+
+
+@uv_tool(title="Look up uv command options (uv help)", toolset=None, read_only=True, idempotent=True)
+async def uv_help(
+    command: Annotated[
+        str, Field(description="uv command, e.g. 'add', 'pip install', 'python'. Empty for the list of commands.")
+    ] = "",
+    search: Annotated[
+        str | None, Field(description="Only options whose flag or description contains this text.")
+    ] = None,
+) -> HelpResult:
+    """List every option the installed uv accepts for a command: value type, allowed choices, env var, and how to
+    pass it with uv-mcp (a tool parameter, the `resolver` object, or extra_args). Use it before reaching for an
+    uncommon uv feature."""
+    words = command.split()
+    if any(not _SUBCOMMAND_RE.match(w) for w in words):
+        raise ValidationError(f"Not a uv command: {command!r}")
+    path = tuple(words)
+    help_ = command_help(path)
+    if help_ is None:
+        raise ValidationError(f"uv has no command `uv {command}` (or uv is not installed). Try command=''.")
+    how = COVERAGE.get(path)
+    tool = how if isinstance(how, str) else None
+    dedicated, has_resolver = _tool_flags(tool) if tool else (set(), False)
+    needle = (search or "").lower()
+    options = []
+    for opt in help_.options.values():
+        if needle and needle not in opt.flag and needle not in opt.description.lower():
+            continue
+        if opt.flag in dedicated:
+            via = "parameter"
+        elif has_resolver and opt.flag in _RESOLVER_FLAGS:
+            via = "resolver"
+        else:
+            via = "extra_args"
+        options.append(
+            OptionInfo(
+                flag=opt.flag,
+                short=opt.short,
+                value=opt.value,
+                choices=opt.choices,
+                env=opt.env,
+                scope=opt.scope,  # type: ignore[arg-type]
+                description=opt.description,
+                via=via,  # type: ignore[arg-type]
+            )
+        )
+    return HelpResult(
+        command=" ".join(("uv", *path)),
+        summary=help_.summary,
+        usage=help_.usage,
+        tool=tool,
+        subcommands=help_.subcommands,
+        options=options,
+        total_options=len(help_.options),
+        uv_version=await _uv_version(),
+    )
 
 
 # --------------------------------------------------------------------------- #

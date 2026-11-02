@@ -25,6 +25,7 @@ async def uv_venv(
     ] = False,
     clear: Annotated[bool, Field(description="Replace an existing environment at this path.")] = False,
     prompt: Annotated[str | None, Field(description="Prompt prefix shown when the venv is activated.")] = None,
+    allow_existing: Annotated[bool, Field(description="Reuse an existing environment instead of failing.")] = False,
     system_site_packages: bool = False,
     relocatable: bool = False,
     extra_args: ExtraArgs = None,
@@ -34,7 +35,8 @@ async def uv_venv(
     target = resolve_path(path or ".venv", get_settings(), base=cwd, what="path")
     args = Args("venv").opt("--python", python, "python").flag(seed, "--seed").flag(clear, "--clear")
     args.opt("--prompt", prompt, "prompt").flag(system_site_packages, "--system-site-packages")
-    args.flag(relocatable, "--relocatable").extra(extra_args)
+    args.flag(relocatable, "--relocatable").flag(allow_existing, "--allow-existing")
+    args.extra(extra_args)
     args.argv.append(str(target))
     result = await run(args, cwd=cwd, mutating=True)
     return extend(result, VenvResult, path=str(target))

@@ -28,11 +28,11 @@ Agents can run shell commands, but a dedicated server makes them faster and safe
 
 ## What is included
 
-50 tools, grouped into toolsets that can be enabled individually:
+51 tools, grouped into toolsets that can be enabled individually:
 
 | Area | Tools |
 |---|---|
-| Orientation | `uv_info`, `uv_project_info` |
+| Orientation | `uv_info`, `uv_project_info`, `uv_help` |
 | Projects | `uv_init`, `uv_add`, `uv_remove`, `uv_sync`, `uv_lock`, `uv_run`, `uv_tree`, `uv_export`, `uv_version`, `uv_format`, `uv_check`, `uv_audit`, `uv_workspace_list`, `uv_workspace_dir`, `uv_workspace_metadata` |
 | Python versions | `uv_python_list`, `uv_python_install`, `uv_python_upgrade`, `uv_python_uninstall`, `uv_python_find`, `uv_python_pin` |
 | pip interface | `uv_pip_install`, `uv_pip_uninstall`, `uv_pip_list`, `uv_pip_show`, `uv_pip_freeze`, `uv_pip_tree`, `uv_pip_check`, `uv_pip_compile`, `uv_pip_sync` |
@@ -43,8 +43,10 @@ Agents can run shell commands, but a dedicated server makes them faster and safe
 | Health | `uv_diagnose`, `uv_repair` |
 | Anything else | `uv_command` |
 
-Flags without a dedicated parameter can be passed through `extra_args`, and uv subcommands without a
-dedicated tool (`uv help`) are reachable through `uv_command`, so nothing uv can do is out of reach. The
+Every uv option is available too. Common options are tool parameters, and resolution and index options are
+grouped in a `resolver` object. Every other option goes in `extra_args`, which is checked against the installed
+uv before anything runs, with suggestions for typos. `uv_help` shows any command's options and how to pass each
+one. The
 [coverage table](/uv-mcp/reference/tools/#uv-command-coverage) maps every uv command to its tool, and a test
 fails if a new uv release adds a command uv-mcp does not cover.
 

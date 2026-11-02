@@ -9,11 +9,16 @@ Tool names now mirror the uv CLI. This is a breaking release: see the migration 
 
 - **Install with one command:** `uvx uv-mcp-server@latest`. The distribution is now named `uv-mcp-server`
   (matching PyPI). The old `uv-mcp` console script remains as an alias.
-- **Complete uv coverage:** 50 tools across projects, Python versions, the pip interface, virtual
+- **Complete uv coverage:** 51 tools across projects, Python versions, the pip interface, virtual
   environments, tools (`uvx`), packaging, cache, auth and uv itself. Every tool accepts `extra_args`, and
   `uv_command` runs any other uv subcommand. A coverage map plus a test against the installed uv's `--help`
   guarantees every uv command is covered and flags new ones.
-- **New tools:** `uv_check` (type checking), `uv_audit` and `uv_tool_audit` (vulnerability audits),
+- **Every uv option:** about 300 of uv's ~1,060 command options are typed parameters (including a shared
+  `resolver` object for resolution strategy, pre-releases, exclude-newer, indexes, platform, no-build,
+  no-sources, offline). The rest go through `extra_args`, now validated against the installed uv's own
+  `--help`, so typos, missing values and invalid choices are rejected with suggestions. The new `uv_help` tool
+  lists any command's options, choices and env vars and says how to pass each one.
+- **New tools:** `uv_help` (option discovery), `uv_check` (type checking), `uv_audit` and `uv_tool_audit` (vulnerability audits),
   `uv_workspace_list`, `uv_workspace_dir`, `uv_workspace_metadata`, `uv_pip_tree`, `uv_pip_check`, `uv_auth_login`, `uv_auth_logout`, `uv_project_info`, `uv_command`.
 - **Uniform results:** every command returns `success`, `exit_code` (the real one), `command`, `cwd`,
   `stdout`, `stderr`, `duration_seconds`, `timed_out`, `truncated` and an actionable `hint`. Lists of

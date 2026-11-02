@@ -50,8 +50,10 @@ cannot race on `uv.lock` or `.venv`.
   them like approving a shell command.
 - Installing packages runs third-party code (build backends, sdists). This is true of uv and pip
   themselves.
-- `extra_args` passes additional flags to uv. They can change behaviour (for example `--index-url`), but
-  they cannot escape the argument list or the path confinement described below.
+- `extra_args` passes additional options to uv. Each one is checked against the installed uv's options for
+  that command (unknown flags, missing values and invalid choices are refused), and it cannot escape the
+  argument list or the path confinement described below. Options can still change behaviour, for example
+  adding an index.
 - `uv_command` runs any uv subcommand except the blocked ones (`auth token`, `python update-shell`,
   `tool update-shell`). Remove it entirely with `--no-raw-command`.
 

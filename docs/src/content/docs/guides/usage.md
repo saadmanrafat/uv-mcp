@@ -44,8 +44,9 @@ uv_tree  { "packages": ["urllib3"], "invert": true }
 |---|---|
 | Add to a group | `uv_add { "packages": ["ruff"], "group": "lint" }` |
 | Add an optional extra | `uv_add { "packages": ["redis"], "optional": "cache" }` |
-| From a private index | `uv_add { "packages": ["internal-lib"], "index": "corp" }` |
-| From git | `uv_add { "packages": ["git+https://github.com/org/repo@v1.2"] }` |
+| From a private index | `uv_add { "packages": ["internal-lib"], "resolver": { "index": ["corp=https://pkgs.corp/simple"] } }` |
+| From git | `uv_add { "packages": ["git+https://github.com/org/repo"], "tag": "v1.2" }` |
+| Platform-specific | `uv_add { "packages": ["pywin32"], "marker": "sys_platform == 'win32'" }` |
 | Remove | `uv_remove { "packages": ["requests"] }` |
 | Upgrade everything | `uv_lock { "upgrade": true }` then `uv_sync` |
 | What is outdated? | `uv_tree { "outdated": true, "depth": 1 }` |
@@ -146,16 +147,46 @@ uv_publish { "publish_url": "https://test.pypi.org/legacy/", "dry_run": false }
 `uv_publish` is a dry run by default; the agent has to pass `dry_run: false` deliberately. Prefer trusted
 publishing from CI, or put `UV_PUBLISH_TOKEN` in the server's `env` block, over pasting tokens into chat.
 
-## Anything else
+## Resolver options
 
-Every tool accepts `extra_args` for flags without a dedicated parameter:
+Tools that resolve packages (`uv_add`, `uv_sync`, `uv_lock`, `uv_run`, `uv_export`, `uv_pip_install`,
+`uv_pip_compile`, `uv_tool_run`, `uv_tool_install`) take a `resolver` object:
+
+> *"Make sure this library still works with the oldest versions it claims to support."*
 
 ```json
-uv_sync { "extra_args": ["--no-install-project", "--compile-bytecode"] }
+uv_lock { "resolver": { "resolution": "lowest-direct" } }
+uv_sync {}
+uv_run  { "command": ["pytest", "-q"] }
+```
+
+| Field | Use |
+|---|---|
+| `resolution` | `highest` (default), `lowest`, `lowest-direct` |
+| `prerelease` | `allow`, `if-necessary`, `explicit`, ... |
+| `exclude_newer` | Reproduce the world as of a date: `"2025-01-31"` |
+| `index`, `default_index` | Private or extra indexes (`name=url` or a URL) |
+| `python_platform` | Resolve for another OS (pip, sync, run, tool) |
+| `no_build`, `no_sources`, `offline` | Wheels only; ignore `[tool.uv.sources]`; cache only |
+
+## Every other option
+
+Every tool accepts `extra_args` for options without a dedicated parameter. They are checked against the
+installed uv, so a typo fails fast with a suggestion instead of a confusing uv error:
+
+```json
+uv_sync { "extra_args": ["--link-mode", "copy"] }
+```
+
+To find an option, ask `uv_help`. It returns every option of a command, its allowed values and environment
+variable, and whether to pass it as a parameter, in `resolver`, or in `extra_args`:
+
+```json
+uv_help { "command": "pip compile", "search": "hash" }
 ```
 
 And `uv_command` runs any uv subcommand, including ones added in uv releases newer than your uv-mcp:
 
 ```json
-uv_command { "args": ["help", "sync"] }
+uv_command { "args": ["self", "version", "--output-format", "json"] }
 ```
