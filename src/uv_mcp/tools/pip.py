@@ -17,7 +17,7 @@ from ..models import CommandResult, PipCompileResult, PipListResult, PipShowResu
 from ..parsing import load_json, parse_pip_list, parse_pip_show
 from ..registry import uv_tool
 from ..security import ValidationError, require_values, resolve_path
-from ._common import Args, ExtraArgs, ProjectPath, extend, project_dir, run
+from ._common import Args, ExtraArgs, ProjectPath, Resolver, extend, project_dir, run
 
 EnvPython = Annotated[
     str | None,
@@ -29,6 +29,8 @@ System = Annotated[
     bool,
     Field(description="Target the system Python. Avoid unless the user asked for it."),
 ]
+Constraints = Annotated[list[str] | None, Field(description="Constraint files (-c) limiting resolved versions.")]
+Overrides = Annotated[list[str] | None, Field(description="Override files forcing specific versions.")]
 Requirements = Annotated[
     list[str] | None,
     Field(description="Requirement files (requirements.txt, pyproject.toml, pylock.toml), relative to project_path."),
@@ -54,9 +56,18 @@ async def uv_pip_install(
     target: Annotated[
         str | None, Field(description="Install into this directory instead of an environment (--target).")
     ] = None,
+    constraints: Constraints = None,
+    overrides: Overrides = None,
+    extras: Annotated[list[str] | None, Field(description="Extras to install from pyproject.toml inputs.")] = None,
+    all_extras: bool = False,
+    groups: Annotated[list[str] | None, Field(description="Dependency groups to install from pyproject.toml.")] = None,
+    no_deps: Annotated[bool, Field(description="Install only the named packages, not their dependencies.")] = False,
     upgrade: bool = False,
     reinstall: bool = False,
+    compile_bytecode: bool = False,
+    python_version: Annotated[str | None, Field(description="Resolve for this Python version, e.g. '3.11'.")] = None,
     dry_run: bool = False,
+    resolver: Resolver = None,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
     """Install packages into a virtual environment without recording them in pyproject.toml.
@@ -77,6 +88,13 @@ async def uv_pip_install(
         args.argv += ["-r", f]
     for e in edits:
         args.argv += ["-e", e]
+    for f in _files(constraints, cwd, "constraints file"):
+        args.argv += ["--constraints", f]
+    for f in _files(overrides, cwd, "overrides file"):
+        args.argv += ["--overrides", f]
+    args.many("--extra", extras, "extra").flag(all_extras, "--all-extras").many("--group", groups, "group")
+    args.flag(no_deps, "--no-deps").flag(compile_bytecode, "--compile-bytecode")
+    args.opt("--python-version", python_version, "python_version").resolver(resolver)
     args.extra(extra_args).positional(packages, "package")
     return await run(args, cwd=cwd, mutating=not dry_run)
 
@@ -204,8 +222,16 @@ async def uv_pip_compile(
     universal: Annotated[bool, Field(description="Produce a platform-independent resolution.")] = False,
     generate_hashes: bool = False,
     upgrade: bool = False,
+    upgrade_packages: Annotated[list[str] | None, Field(description="Allow upgrading only these packages.")] = None,
     extras: Annotated[list[str] | None, Field(description="Extras to include (pyproject.toml inputs).")] = None,
+    all_extras: bool = False,
+    groups: Annotated[list[str] | None, Field(description="Dependency groups to include (pyproject.toml).")] = None,
+    constraints: Constraints = None,
+    overrides: Overrides = None,
+    no_deps: bool = False,
+    no_header: bool = False,
     python_version: Annotated[str | None, Field(description="Resolve for this Python version, e.g. '3.11'.")] = None,
+    resolver: Resolver = None,
     extra_args: ExtraArgs = None,
 ) -> PipCompileResult:
     """Resolve loose requirements into a fully pinned requirements.txt or pylock.toml."""
@@ -218,8 +244,14 @@ async def uv_pip_compile(
         out = resolve_path(output_file, settings, base=cwd, what="output_file")
         args.path_opt("--output-file", out)
     args.opt("--format", format).flag(universal, "--universal").flag(generate_hashes, "--generate-hashes")
-    args.flag(upgrade, "--upgrade").many("--extra", extras, "extra")
-    args.opt("--python-version", python_version, "python_version").extra(extra_args)
+    args.flag(upgrade, "--upgrade").many("--upgrade-package", upgrade_packages, "upgrade_packages")
+    args.many("--extra", extras, "extra").flag(all_extras, "--all-extras").many("--group", groups, "group")
+    for f in _files(constraints, cwd, "constraints file"):
+        args.argv += ["--constraints", f]
+    for f in _files(overrides, cwd, "overrides file"):
+        args.argv += ["--overrides", f]
+    args.flag(no_deps, "--no-deps").flag(no_header, "--no-header")
+    args.opt("--python-version", python_version, "python_version").resolver(resolver).extra(extra_args)
     result = await run(args, cwd=cwd, mutating=out is not None)
     return extend(result, PipCompileResult, output_file=str(out) if out else None)
 
@@ -236,6 +268,8 @@ async def uv_pip_sync(
     project_path: ProjectPath = None,
     python: EnvPython = None,
     system: System = False,
+    constraints: Constraints = None,
+    compile_bytecode: bool = False,
     dry_run: bool = False,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
@@ -243,5 +277,8 @@ async def uv_pip_sync(
     cwd = project_dir(project_path)
     args = Args("pip", "sync")
     args.argv += _files(src_files, cwd, "source file")
-    args.opt("--python", python, "python").flag(system, "--system").flag(dry_run, "--dry-run").extra(extra_args)
+    for f in _files(constraints, cwd, "constraints file"):
+        args.argv += ["--constraints", f]
+    args.opt("--python", python, "python").flag(system, "--system").flag(compile_bytecode, "--compile-bytecode")
+    args.flag(dry_run, "--dry-run").extra(extra_args)
     return await run(args, cwd=cwd, mutating=not dry_run)

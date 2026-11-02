@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Annotated, TypeVar
+from typing import Annotated, Literal, TypeVar
 
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import get_settings
+from ..coverage import COVERAGE
+from ..flags import CommandHelp, command_help, suggest
 from ..models import CommandResult
 from ..runner import run_uv
-from ..security import resolve_project_dir, safe_extra_args, safe_value, safe_values
+from ..security import ValidationError, _check_text, resolve_project_dir, safe_extra_args, safe_value, safe_values
 
 # --------------------------------------------------------------------------- #
 # Reusable parameter annotations (keep descriptions short: they cost context).
@@ -23,7 +25,10 @@ ProjectPath = Annotated[
 ]
 ExtraArgs = Annotated[
     list[str] | None,
-    Field(description="Extra raw uv flags, e.g. ['--offline']."),
+    Field(
+        description="Any other option of this uv command, e.g. ['--compile-bytecode']. Checked against the "
+        "installed uv; uv_help lists every option."
+    ),
 ]
 PythonRequest = Annotated[
     str | None,
@@ -49,11 +54,106 @@ TimeoutSeconds = Annotated[
 R = TypeVar("R", bound=CommandResult)
 
 
+class ResolverOptions(BaseModel):
+    """The resolver options agents need most. Every other uv option goes through extra_args (see uv_help)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    resolution: Literal["highest", "lowest", "lowest-direct"] | None = None
+    prerelease: Literal["disallow", "allow", "if-necessary", "explicit", "if-necessary-or-explicit"] | None = None
+    exclude_newer: str | None = Field(None, description="Ignore uploads after this date, e.g. '2025-01-31'.")
+    index: list[str] | None = Field(None, description="Extra indexes, URL or name=URL, highest priority first.")
+    default_index: str | None = Field(None, description="Use instead of PyPI.")
+    python_platform: str | None = Field(None, description="Target platform, e.g. 'linux' (pip, sync, run, tool).")
+    no_build: bool = Field(False, description="Wheels only; never build from source.")
+    no_sources: bool = Field(False, description="Ignore [tool.uv.sources].")
+    offline: bool = Field(False, description="Cache only, no network.")
+
+
+Resolver = Annotated[
+    ResolverOptions | None,
+    Field(description="Resolution and index options."),
+]
+
+
+def _command_path(base: Sequence[str]) -> tuple[str, ...]:
+    """The uv command an argv targets, e.g. ('pip', 'install') for ['pip', 'install', '--dry-run']."""
+    words = []
+    for token in base:
+        if token.startswith("-"):
+            break
+        words.append(token)
+    for n in range(len(words), 0, -1):
+        if tuple(words[:n]) in COVERAGE:
+            return tuple(words[:n])
+    return tuple(words[:1])
+
+
+def validate_options(path: tuple[str, ...], extra_args: Sequence[str], help_: CommandHelp | None) -> list[str]:
+    """Check extra uv options against what the installed uv accepts for ``path``.
+
+    Unknown flags, flags given a value they do not take, missing values and values outside a flag's allowed
+    choices are rejected with a precise message, before uv runs. If uv's help is unavailable the arguments are
+    passed through (uv will report problems itself).
+    """
+    args = list(extra_args)
+    if help_ is None:
+        return args
+    cmd = "uv " + " ".join(path)
+    out: list[str] = []
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token == "--":
+            raise ValidationError("'--' is not allowed in extra_args")
+        if not token.startswith("-") or token == "-":
+            out.append(token)
+            i += 1
+            continue
+        if token.startswith("--"):
+            name, eq, value = token.partition("=")
+            opt = help_.lookup(name)
+            inline = bool(eq)
+        else:  # short flag: -p3.12, -p 3.12, -U, -qq
+            name, value = token[:2], token[2:]
+            opt = help_.lookup(name)
+            inline = bool(value)
+            if opt is not None and not opt.takes_value and value:
+                if any(help_.lookup("-" + c) is None or help_.lookup("-" + c).takes_value for c in value):
+                    raise ValidationError(f"Unknown combined short flags {token!r} for `{cmd}`")
+                inline = False
+        if opt is None:
+            hints = suggest(name, help_)
+            did_you_mean = f" Did you mean {', '.join(hints)}?" if hints else ""
+            raise ValidationError(
+                f"`{cmd}` has no option {name}.{did_you_mean} Call uv_help with command='{' '.join(path)}' to list options."
+            )
+        if opt.takes_value:
+            if not inline:
+                if i + 1 >= len(args):
+                    raise ValidationError(f"{name} needs a value <{opt.value}>")
+                value = _check_text(args[i + 1], f"value for {name}")
+                out += [token, value]
+                i += 2
+            else:
+                out.append(token)
+                i += 1
+            if opt.choices and value.split("=", 1)[0] not in opt.choices:
+                raise ValidationError(f"{name} must be one of: {', '.join(opt.choices)} (got {value!r})")
+            continue
+        if inline and token.startswith("--"):
+            raise ValidationError(f"{name} does not take a value")
+        out.append(token)
+        i += 1
+    return out
+
+
 class Args:
     """Small argv builder that validates values as they are added."""
 
     def __init__(self, *base: str) -> None:
         self.argv: list[str] = list(base)
+        self.path = _command_path(base)
 
     def flag(self, enabled: bool | None, name: str) -> Args:
         if enabled:
@@ -80,7 +180,43 @@ class Args:
         return self
 
     def extra(self, extra_args: Sequence[str] | None) -> Args:
-        self.argv += safe_extra_args(extra_args, get_settings())
+        """Append caller-supplied uv options, validated against the installed uv's options for this command."""
+        cleaned = safe_extra_args(extra_args, get_settings())
+        if cleaned and self.path:
+            cleaned = validate_options(self.path, cleaned, command_help(self.path))
+        self.argv += cleaned
+        return self
+
+    def passthrough(self, args: Sequence[str] | None) -> Args:
+        """Append arguments meant for another program (e.g. ruff), with only basic safety checks."""
+        self.argv += safe_extra_args(args, get_settings())
+        return self
+
+    def resolver(self, options: ResolverOptions | None) -> Args:
+        """Append resolver/index options, refusing any the installed uv does not support for this command."""
+        if options is None:
+            return self
+        o = options
+        wanted: list[tuple[str, list[str]]] = []
+        for flag, value in (
+            ("--resolution", o.resolution),
+            ("--prerelease", o.prerelease),
+            ("--exclude-newer", o.exclude_newer),
+            ("--default-index", o.default_index),
+            ("--python-platform", o.python_platform),
+        ):
+            if value:
+                wanted.append((flag, [flag, safe_value(value, flag)]))
+        for value in o.index or []:
+            wanted.append(("--index", ["--index", safe_value(value, "--index")]))
+        for flag, enabled in (("--no-build", o.no_build), ("--no-sources", o.no_sources), ("--offline", o.offline)):
+            if enabled:
+                wanted.append((flag, [flag]))
+        help_ = command_help(self.path) if self.path else None
+        for flag, argv in wanted:
+            if help_ is not None and help_.lookup(flag) is None:
+                raise ValidationError(f"`uv {' '.join(self.path)}` does not support {flag}")
+            self.argv += argv
         return self
 
     def dependency_selection(

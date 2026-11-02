@@ -44,7 +44,7 @@ Agents can always override it per call with `project_path`, either absolute or r
 "args": ["uv-mcp-server@latest", "--read-only"]
 ```
 
-Only tools annotated read-only are registered: `uv_info`, `uv_project_info`, `uv_diagnose`, `uv_tree`,
+Only tools annotated read-only are registered: `uv_info`, `uv_help`, `uv_project_info`, `uv_diagnose`, `uv_tree`,
 `uv_export` (to stdout only), `uv_audit`, `uv_python_list`, `uv_python_find`, `uv_pip_list`, `uv_pip_show`,
 `uv_pip_freeze`, `uv_pip_tree`, `uv_pip_check`, `uv_tool_list`, `uv_tool_audit`, `uv_workspace_list`,
 `uv_workspace_dir`, `uv_workspace_metadata` and `uv_cache_size`. Commands that would
@@ -69,7 +69,7 @@ Fewer tools means less context spent on tool definitions. Pick only what an agen
 | `self` | `uv_self_update` |
 | `diagnostics` | `uv_project_info`, `uv_diagnose`, `uv_repair` |
 
-`uv_info` and `uv_command` are always registered. For example, a coding agent that only works inside
+`uv_info`, `uv_help` and `uv_command` are always registered. For example, a coding agent that only works inside
 projects:
 
 ```json

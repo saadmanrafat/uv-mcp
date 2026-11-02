@@ -86,7 +86,7 @@ COVERAGE: dict[tuple[str, ...], Coverage] = {
     # uv itself
     ("self", "update"): "uv_self_update",
     ("self", "version"): "uv_info",
-    ("help",): "uv_command",
+    ("help",): "uv_help",
 }
 
 BLOCKED: dict[tuple[str, ...], str] = {path: c.reason for path, c in COVERAGE.items() if isinstance(c, Blocked)}

@@ -6,13 +6,24 @@ from typing import Annotated
 
 from pydantic import Field
 
+from ..config import get_settings
 from ..models import AuditResult, CommandResult, ToolListResult
 from ..parsing import load_json, parse_tool_list
 from ..registry import uv_tool
-from ..security import ValidationError, require_values, safe_env, safe_value
-from ._common import Args, ExtraArgs, PythonRequest, TimeoutSeconds, extend, project_dir, run
+from ..security import ValidationError, require_values, resolve_path, safe_env, safe_value
+from ._common import Args, ExtraArgs, PythonRequest, Resolver, TimeoutSeconds, extend, project_dir, run
 
 _TOOL_LOCK = "global:tools"
+
+WithRequirements = Annotated[list[str] | None, Field(description="Requirement files to add to the tool environment.")]
+WithEditable = Annotated[list[str] | None, Field(description="Local paths to add as editable to the tool environment.")]
+ToolConstraints = Annotated[list[str] | None, Field(description="Constraint files limiting resolved versions.")]
+ToolOverrides = Annotated[list[str] | None, Field(description="Override files forcing specific versions.")]
+
+
+def _local(args: Args, flag: str, paths: list[str] | None, base) -> None:
+    for path in paths or []:
+        args.path_opt(flag, resolve_path(path, get_settings(), base=base, what=flag, must_exist=True))
 
 
 @uv_tool(
@@ -39,8 +50,13 @@ async def uv_tool_run(
         str | None, Field(description="Working directory for the tool (default: workspace root).")
     ] = None,
     python: PythonRequest = None,
+    with_requirements: WithRequirements = None,
+    with_editable: WithEditable = None,
+    constraints: ToolConstraints = None,
+    overrides: ToolOverrides = None,
     isolated: Annotated[bool, Field(description="Ignore any installed version of the tool.")] = False,
     env: Annotated[dict[str, str] | None, Field(description="Extra environment variables.")] = None,
+    resolver: Resolver = None,
     timeout_seconds: TimeoutSeconds = None,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
@@ -55,7 +71,11 @@ async def uv_tool_run(
     args = (
         Args("tool", "run").opt("--from", from_package, "from_package").many("--with", with_packages, "with_packages")
     )
-    args.opt("--python", python, "python").flag(isolated, "--isolated").extra(extra_args)
+    _local(args, "--with-requirements", with_requirements, cwd)
+    _local(args, "--with-editable", with_editable, cwd)
+    _local(args, "--constraints", constraints, cwd)
+    _local(args, "--overrides", overrides, cwd)
+    args.opt("--python", python, "python").flag(isolated, "--isolated").resolver(resolver).extra(extra_args)
     args.argv += ["--", program, *command[1:]]
     return await run(args, cwd=cwd, env=safe_env(env), timeout=timeout_seconds)
 
@@ -68,15 +88,31 @@ async def uv_tool_install(
     with_packages: Annotated[
         list[str] | None, Field(description="Extra packages to include in the tool's environment.")
     ] = None,
+    with_requirements: WithRequirements = None,
+    with_editable: WithEditable = None,
+    with_executables_from: Annotated[
+        list[str] | None, Field(description="Also expose executables from these extra packages.")
+    ] = None,
+    constraints: ToolConstraints = None,
+    overrides: ToolOverrides = None,
     editable: bool = False,
     force: Annotated[bool, Field(description="Overwrite executables that already exist on PATH.")] = False,
     upgrade: bool = False,
+    reinstall: bool = False,
     python: PythonRequest = None,
+    resolver: Resolver = None,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
     """Install a Python CLI tool into its own isolated environment and put its executables on PATH (user-wide)."""
     args = Args("tool", "install").many("--with", with_packages, "with_packages").flag(editable, "--editable")
-    args.flag(force, "--force").flag(upgrade, "--upgrade").opt("--python", python, "python").extra(extra_args)
+    root = get_settings().workspace_root
+    _local(args, "--with-requirements", with_requirements, root)
+    _local(args, "--with-editable", with_editable, root)
+    _local(args, "--constraints", constraints, root)
+    _local(args, "--overrides", overrides, root)
+    args.many("--with-executables-from", with_executables_from, "with_executables_from")
+    args.flag(force, "--force").flag(upgrade, "--upgrade").flag(reinstall, "--reinstall")
+    args.opt("--python", python, "python").resolver(resolver).extra(extra_args)
     args.argv.append(safe_value(package, "package"))
     return await run(args, mutating=True, lock_key=_TOOL_LOCK)
 
@@ -91,7 +127,8 @@ async def uv_tool_upgrade(
     """Upgrade installed tools to the latest versions their constraints allow."""
     if bool(packages) == bool(all):
         raise ValidationError("Pass either packages or all=true")
-    args = Args("tool", "upgrade").flag(all, "--all").opt("--python", python, "python").extra(extra_args)
+    args = Args("tool", "upgrade").flag(all, "--all").opt("--python", python, "python")
+    args.extra(extra_args)
     args.positional(packages, "package")
     return await run(args, mutating=True, lock_key=_TOOL_LOCK)
 

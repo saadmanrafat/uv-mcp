@@ -179,6 +179,31 @@ class UVDirectories(BaseModel):
     credentials: str | None = None
 
 
+class OptionInfo(BaseModel):
+    flag: str
+    short: str | None = None
+    value: str | None = Field(default=None, description="Value placeholder; null for on/off flags.")
+    choices: list[str] = Field(default_factory=list)
+    env: str | None = Field(default=None, description="Environment variable that sets the same option.")
+    scope: Literal["command", "global"] = "command"
+    description: str = ""
+    via: Literal["parameter", "resolver", "extra_args"] = Field(
+        default="extra_args",
+        description="How to pass it with uv-mcp: a dedicated tool parameter, the `resolver` object, or extra_args.",
+    )
+
+
+class HelpResult(BaseModel):
+    command: str = Field(description="The uv command described, e.g. 'uv pip install'.")
+    summary: str = ""
+    usage: str = ""
+    tool: str | None = Field(default=None, description="The uv-mcp tool that runs this command.")
+    subcommands: dict[str, str] = Field(default_factory=dict)
+    options: list[OptionInfo] = Field(default_factory=list)
+    total_options: int = 0
+    uv_version: str | None = None
+
+
 class ServerInfo(BaseModel):
     """Everything an agent needs to orient itself before calling other tools."""
 

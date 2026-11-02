@@ -114,8 +114,11 @@ async def render() -> str:
         "arbitrary code, **network** tools may contact package indexes. In read-only mode only read-only tools",
         "are registered.",
         "",
-        "Rarely used uv flags are not modelled as parameters: pass them through `extra_args`, for example",
-        '`extra_args: ["--no-build-isolation"]`. Commands with no dedicated tool are available through `uv_command`.',
+        "Every uv option is available. Common options are tool parameters; resolution and index options are grouped",
+        "in a `resolver` object on the tools that resolve packages; every other option goes in `extra_args`, which is",
+        "validated against the installed uv (unknown flags, missing values and invalid choices are rejected with",
+        "suggestions). [`uv_help`](#uv_help) lists every option of any command, with its choices and environment",
+        "variable, and says which of the three ways to pass it.",
         "",
     ]
     lines += _coverage_table()

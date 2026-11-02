@@ -36,6 +36,9 @@ Choosing tools
 - uv_pip_* tools are for plain virtual environments and requirements.txt workflows, not uv projects.
 - One-off CLI tools (ruff, black, httpie, cookiecutter): uv_tool_run, the equivalent of uvx.
 - Broken environment, ImportError/ModuleNotFoundError, or unsure of state: uv_diagnose, then uv_repair.
+- Any uv option: common ones are tool parameters; resolution/index options live in `resolver`; everything else
+  goes in extra_args, which is checked against the installed uv. uv_help(command) lists every option of a command
+  and says which of the three to use.
 - Anything without a dedicated tool: uv_command with the raw uv arguments.
 
 Results
@@ -79,6 +82,8 @@ def compact_schema(schema: dict) -> dict:
                 del prop["anyOf"]
                 prop.pop("default")
                 prop.update(non_null[0])
+        if prop.get("type") == "object" and "properties" in prop:
+            compact_schema(prop)  # nested option objects such as `resolver`
     return schema
 
 

@@ -28,6 +28,11 @@ async def uv_build(
     member: Member = None,
     all_packages: Annotated[bool, Field(description="Build every workspace member.")] = False,
     clear: Annotated[bool, Field(description="Empty the output directory first.")] = False,
+    build_constraints: Annotated[
+        list[str] | None, Field(description="Constraint files for build dependencies (-b).")
+    ] = None,
+    no_build_logs: Annotated[bool, Field(description="Hide build backend output.")] = False,
+    force_pep517: Annotated[bool, Field(description="Always build through PEP 517, even with uv_build.")] = False,
     python: PythonRequest = None,
     extra_args: ExtraArgs = None,
 ) -> BuildResult:
@@ -36,6 +41,11 @@ async def uv_build(
     out = resolve_path(out_dir, get_settings(), base=cwd, what="out_dir") if out_dir else None
     args = Args("build").path_opt("--out-dir", out).flag(sdist, "--sdist").flag(wheel, "--wheel")
     args.opt("--package", member, "member").flag(all_packages, "--all-packages").flag(clear, "--clear")
+    for f in build_constraints or []:
+        args.path_opt(
+            "--build-constraints", resolve_path(f, get_settings(), base=cwd, what="build constraints", must_exist=True)
+        )
+    args.flag(no_build_logs, "--no-build-logs").flag(force_pep517, "--force-pep517")
     args.opt("--python", python, "python").extra(extra_args)
     result = await run(args, cwd=cwd, mutating=True)
     artifacts = []

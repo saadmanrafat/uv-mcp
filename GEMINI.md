@@ -22,11 +22,14 @@ Tool names mirror the uv CLI: `uv add` is `uv_add`, `uv pip list` is `uv_pip_lis
 | One-off CLI tool (ruff, black, httpie) | `uv_tool_run` |
 | Vulnerability audit | `uv_audit` (project), `uv_tool_audit` (installed tools) |
 | Broken environment or ImportError | `uv_diagnose`, then `uv_repair` |
+| Find any uv option (choices, env var, how to pass it) | `uv_help` |
 | Anything else uv can do | `uv_command` |
 
 ## Conventions
 
 - `project_path` is absolute or relative to the workspace root. Omit it to use the workspace root.
 - Every command result has `success`, `exit_code`, `stdout`, `stderr` and, on failure, a `hint`. Read the hint first.
+- Options: common ones are parameters, resolution/index options go in `resolver`, the rest in `extra_args`
+  (validated). Ask `uv_help` when unsure.
 - Never edit `uv.lock` by hand. Change dependencies with `uv_add` / `uv_remove`.
 - `uv_publish` is a dry run unless `dry_run=false`; only publish when the user explicitly asks.

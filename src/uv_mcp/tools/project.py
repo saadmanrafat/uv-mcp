@@ -22,6 +22,7 @@ from ._common import (
     Member,
     ProjectPath,
     PythonRequest,
+    Resolver,
     Script,
     TimeoutSeconds,
     extend,
@@ -30,14 +31,15 @@ from ._common import (
     run,
 )
 
-Packages = Annotated[
-    list[str],
-    Field(
-        description="Requirement specifiers: names with optional extras/versions ('httpx', 'fastapi[standard]>=0.115'), "
-        "git URLs ('git+https://github.com/org/repo@v1') or local paths.",
-        min_length=1,
-    ),
-]
+Files = Annotated[list[str] | None, Field(description="Requirement files, relative to project_path.")]
+UpgradePackages = Annotated[list[str] | None, Field(description="Allow upgrading only these packages (-P).")]
+
+
+def _files(args: Args, flag: str, files: list[str] | None, base) -> None:
+    for f in files or []:
+        args.path_opt(flag, resolve_path(f, get_settings(), base=base, what=f"{flag} file", must_exist=True))
+
+
 NoSync = Annotated[
     bool, Field(description="Update pyproject.toml/uv.lock but do not sync the environment (--no-sync).")
 ]
@@ -71,6 +73,9 @@ async def uv_init(
         Literal["git", "none"] | None, Field(description="Version control to initialise (default: git).")
     ] = None,
     no_workspace: Annotated[bool, Field(description="Do not add the project to an enclosing workspace.")] = False,
+    description: Annotated[str | None, Field(description="Project description for pyproject.toml.")] = None,
+    no_readme: bool = False,
+    no_pin_python: Annotated[bool, Field(description="Do not write a .python-version file.")] = False,
     extra_args: ExtraArgs = None,
 ) -> InitResult:
     """Create a new uv project (pyproject.toml, .python-version, README, sample code) or a PEP 723 script.
@@ -92,7 +97,8 @@ async def uv_init(
     args.flag(package and kind == "app", "--package").flag(bare, "--bare")
     args.opt("--name", name, "name").opt("--python", python, "python")
     args.opt("--build-backend", build_backend, "build_backend").opt("--vcs", vcs)
-    args.flag(no_workspace, "--no-workspace").extra(extra_args)
+    args.flag(no_workspace, "--no-workspace").opt("--description", description, "description")
+    args.flag(no_readme, "--no-readme").flag(no_pin_python, "--no-pin-python").extra(extra_args)
     args.argv.append(str(target))
     result = await run(args, cwd=cwd, mutating=True, lock_key=str(target))
     return extend(result, InitResult, path=str(target))
@@ -100,31 +106,63 @@ async def uv_init(
 
 @uv_tool(title="Add dependencies (uv add)", toolset="project", open_world=True)
 async def uv_add(
-    packages: Packages,
+    packages: Annotated[
+        list[str] | None,
+        Field(
+            description="Requirement specifiers: 'httpx', 'fastapi[standard]>=0.115', "
+            "'git+https://github.com/org/repo', or local paths."
+        ),
+    ] = None,
     project_path: ProjectPath = None,
     dev: Annotated[bool, Field(description="Add to the 'dev' dependency group.")] = False,
     group: Annotated[str | None, Field(description="Add to this dependency group (e.g. 'test', 'lint').")] = None,
     optional: Annotated[str | None, Field(description="Add to this optional-dependency extra.")] = None,
     editable: Annotated[bool, Field(description="Add local path dependencies as editable.")] = False,
-    index: Annotated[
-        str | None, Field(description="Named or URL index to resolve these packages from (--index).")
+    package_extras: Annotated[
+        list[str] | None, Field(description="Extras to enable on the added package, e.g. ['socks'] (--extra).")
     ] = None,
+    marker: Annotated[
+        str | None, Field(description="Environment marker for the requirement, e.g. \"sys_platform == 'linux'\".")
+    ] = None,
+    bounds: Annotated[
+        Literal["lower", "major", "minor", "exact"] | None,
+        Field(description="Version constraint style written to pyproject.toml (default: lower bound)."),
+    ] = None,
+    raw: Annotated[bool, Field(description="Write the requirement exactly as given, with no added bounds.")] = False,
+    rev: Annotated[str | None, Field(description="Git commit for a git dependency.")] = None,
+    tag: Annotated[str | None, Field(description="Git tag for a git dependency.")] = None,
+    branch: Annotated[str | None, Field(description="Git branch for a git dependency.")] = None,
+    requirements: Files = None,
+    constraints: Annotated[list[str] | None, Field(description="Constraint files limiting resolved versions.")] = None,
+    workspace: Annotated[bool, Field(description="Add a local path dependency as a workspace member.")] = False,
     member: Member = None,
     script: Script = None,
     no_sync: NoSync = False,
+    no_install_project: Annotated[bool, Field(description="Sync dependencies but not the project itself.")] = False,
+    upgrade_packages: UpgradePackages = None,
+    frozen: Frozen = False,
     locked: Locked = False,
+    resolver: Resolver = None,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
     """Add dependencies to pyproject.toml, update uv.lock and sync the project environment.
 
-    This is the right way to install packages for a project; prefer it over uv_pip_install.
+    This is the right way to install packages for a project; prefer it over uv_pip_install. Supports git
+    (rev/tag/branch), local paths, extras, markers, groups, private indexes (resolver.index) and PEP 723 scripts.
     """
     cwd = project_dir(project_path)
     args = Args("add").flag(dev, "--dev").opt("--group", group, "group").opt("--optional", optional, "optional")
-    args.flag(editable, "--editable").opt("--index", index, "index")
-    args.opt("--package", member, "member").opt("--script", script, "script")
-    args.flag(no_sync, "--no-sync").flag(locked, "--locked").extra(extra_args)
-    args.positional(require_values(packages, "package"), "package")
+    args.flag(editable, "--editable").many("--extra", package_extras, "package_extras").opt("--marker", marker)
+    args.opt("--bounds", bounds).flag(raw, "--raw").opt("--rev", rev).opt("--tag", tag).opt("--branch", branch)
+    _files(args, "--requirements", requirements, cwd)
+    _files(args, "--constraints", constraints, cwd)
+    args.flag(workspace, "--workspace").opt("--package", member, "member").opt("--script", script, "script")
+    args.flag(no_sync, "--no-sync").flag(no_install_project, "--no-install-project")
+    args.many("--upgrade-package", upgrade_packages, "upgrade_packages")
+    args.flag(frozen, "--frozen").flag(locked, "--locked").resolver(resolver).extra(extra_args)
+    args.positional(packages, "package")
+    if not packages and not requirements:
+        raise ValidationError("Pass packages or requirements")
     return await run(args, cwd=cwd, mutating=True)
 
 
@@ -138,13 +176,16 @@ async def uv_remove(
     member: Member = None,
     script: Script = None,
     no_sync: NoSync = False,
+    frozen: Frozen = False,
+    locked: Locked = False,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
     """Remove dependencies from pyproject.toml, update uv.lock and sync the environment."""
     cwd = project_dir(project_path)
     args = Args("remove").flag(dev, "--dev").opt("--group", group, "group").opt("--optional", optional, "optional")
     args.opt("--package", member, "member").opt("--script", script, "script")
-    args.flag(no_sync, "--no-sync").extra(extra_args)
+    args.flag(no_sync, "--no-sync").flag(frozen, "--frozen").flag(locked, "--locked")
+    args.extra(extra_args)
     args.positional(require_values(packages, "package"), "package")
     return await run(args, cwd=cwd, mutating=True)
 
@@ -157,16 +198,25 @@ async def uv_sync(
     groups: Groups = None,
     all_groups: bool = False,
     no_dev: Annotated[bool, Field(description="Exclude the dev group.")] = False,
+    only_dev: bool = False,
     upgrade: Annotated[bool, Field(description="Upgrade all packages to the latest allowed versions.")] = False,
-    upgrade_packages: Annotated[list[str] | None, Field(description="Upgrade only these packages.")] = None,
+    upgrade_packages: UpgradePackages = None,
     reinstall: Annotated[bool, Field(description="Reinstall every package (fixes corrupted installs).")] = False,
+    inexact: Annotated[bool, Field(description="Keep packages that are not in the lockfile.")] = False,
+    no_install_project: Annotated[bool, Field(description="Install dependencies only, not the project.")] = False,
+    no_install_workspace: bool = False,
+    no_editable: Annotated[bool, Field(description="Install the project and members as non-editable.")] = False,
+    compile_bytecode: Annotated[bool, Field(description="Compile .pyc files after installing.")] = False,
+    active: Annotated[bool, Field(description="Sync into the active virtualenv instead of .venv.")] = False,
     check: Annotated[bool, Field(description="Only check whether the environment is in sync; change nothing.")] = False,
+    dry_run: bool = False,
     member: Member = None,
     all_packages: Annotated[bool, Field(description="Sync every workspace member.")] = False,
     script: Script = None,
     frozen: Frozen = False,
     locked: Locked = False,
     python: PythonRequest = None,
+    resolver: Resolver = None,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
     """Make the project's .venv match uv.lock exactly (creating the venv and lockfile if needed).
@@ -175,31 +225,38 @@ async def uv_sync(
     """
     cwd = project_dir(project_path)
     args = Args("sync").dependency_selection(
-        extras=extras, all_extras=all_extras, groups=groups, all_groups=all_groups, no_dev=no_dev
+        extras=extras, all_extras=all_extras, groups=groups, all_groups=all_groups, no_dev=no_dev, only_dev=only_dev
     )
     args.flag(upgrade, "--upgrade").many("--upgrade-package", upgrade_packages, "upgrade_packages")
-    args.flag(reinstall, "--reinstall").flag(check, "--check")
+    args.flag(reinstall, "--reinstall").flag(inexact, "--inexact").flag(no_install_project, "--no-install-project")
+    args.flag(no_install_workspace, "--no-install-workspace").flag(no_editable, "--no-editable")
+    args.flag(compile_bytecode, "--compile-bytecode").flag(active, "--active")
+    args.flag(check, "--check").flag(dry_run, "--dry-run")
     args.opt("--package", member, "member").flag(all_packages, "--all-packages").opt("--script", script, "script")
-    args.flag(frozen, "--frozen").flag(locked, "--locked").opt("--python", python, "python").extra(extra_args)
-    return await run(args, cwd=cwd, mutating=not check)
+    args.flag(frozen, "--frozen").flag(locked, "--locked").opt("--python", python, "python")
+    args.resolver(resolver).extra(extra_args)
+    return await run(args, cwd=cwd, mutating=not (check or dry_run))
 
 
 @uv_tool(title="Update the lockfile (uv lock)", toolset="project", idempotent=True, open_world=True)
 async def uv_lock(
     project_path: ProjectPath = None,
     upgrade: Annotated[bool, Field(description="Allow upgrading every package.")] = False,
-    upgrade_packages: Annotated[list[str] | None, Field(description="Allow upgrading only these packages.")] = None,
+    upgrade_packages: UpgradePackages = None,
     check: Annotated[bool, Field(description="Only check whether uv.lock is up to date; write nothing.")] = False,
+    dry_run: Annotated[bool, Field(description="Resolve and report changes without writing uv.lock.")] = False,
     script: Script = None,
     python: PythonRequest = None,
+    resolver: Resolver = None,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
-    """Resolve dependencies and write uv.lock without touching the environment."""
+    """Resolve dependencies and write uv.lock without touching the environment. Use resolver for strategies such
+    as lowest-version testing or exclude_newer for reproducible point-in-time locks."""
     cwd = project_dir(project_path)
     args = Args("lock").flag(upgrade, "--upgrade").many("--upgrade-package", upgrade_packages, "upgrade_packages")
-    args.flag(check, "--check").opt("--script", script, "script")
-    args.opt("--python", python, "python").extra(extra_args)
-    return await run(args, cwd=cwd, mutating=not check)
+    args.flag(check, "--check").flag(dry_run, "--dry-run").opt("--script", script, "script")
+    args.opt("--python", python, "python").resolver(resolver).extra(extra_args)
+    return await run(args, cwd=cwd, mutating=not (check or dry_run))
 
 
 @uv_tool(
@@ -218,6 +275,11 @@ async def uv_run(
     with_packages: Annotated[
         list[str] | None, Field(description="Extra packages available only for this run (--with).")
     ] = None,
+    with_editable: Annotated[
+        list[str] | None, Field(description="Local paths to add as editable for this run.")
+    ] = None,
+    with_requirements: Annotated[list[str] | None, Field(description="Requirement files to add for this run.")] = None,
+    module: Annotated[bool, Field(description="Run command[0] as a Python module (python -m).")] = False,
     env: Annotated[dict[str, str] | None, Field(description="Extra environment variables for the command.")] = None,
     env_file: Annotated[str | None, Field(description="Load environment variables from this .env file.")] = None,
     isolated: Annotated[bool, Field(description="Run in a temporary environment, leaving .venv untouched.")] = False,
@@ -226,12 +288,17 @@ async def uv_run(
     ] = False,
     no_sync: Annotated[bool, Field(description="Do not sync the environment before running.")] = False,
     extras: Extras = None,
+    all_extras: bool = False,
     groups: Groups = None,
+    all_groups: bool = False,
     no_dev: bool = False,
+    exact: Annotated[bool, Field(description="Remove packages not in the lockfile before running.")] = False,
+    active: Annotated[bool, Field(description="Use the active virtualenv instead of .venv.")] = False,
     member: Member = None,
     frozen: Frozen = False,
     locked: Locked = False,
     python: PythonRequest = None,
+    resolver: Resolver = None,
     timeout_seconds: TimeoutSeconds = None,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
@@ -244,12 +311,17 @@ async def uv_run(
     program = safe_value(command[0], "command[0]")
     settings = get_settings()
     args = Args("run").many("--with", with_packages, "with_packages")
+    for path in with_editable or []:
+        args.path_opt("--with-editable", resolve_path(path, settings, base=cwd, what="with_editable", must_exist=True))
+    _files(args, "--with-requirements", with_requirements, cwd)
+    args.flag(module, "--module")
     if env_file:
         args.path_opt("--env-file", resolve_path(env_file, settings, base=cwd, what="env_file", must_exist=True))
     args.flag(isolated, "--isolated").flag(no_project, "--no-project").flag(no_sync, "--no-sync")
-    args.dependency_selection(extras=extras, groups=groups, no_dev=no_dev)
+    args.dependency_selection(extras=extras, all_extras=all_extras, groups=groups, all_groups=all_groups, no_dev=no_dev)
+    args.flag(exact, "--exact").flag(active, "--active")
     args.opt("--package", member, "member").flag(frozen, "--frozen").flag(locked, "--locked")
-    args.opt("--python", python, "python").extra(extra_args)
+    args.opt("--python", python, "python").resolver(resolver).extra(extra_args)
     args.argv += ["--", program, *command[1:]]
     for arg in command[1:]:
         if "\x00" in arg:
@@ -266,8 +338,12 @@ async def uv_tree(
     packages: Annotated[list[str] | None, Field(description="Only show the tree rooted at these packages.")] = None,
     invert: Annotated[bool, Field(description="Show reverse dependencies: who depends on `packages`.")] = False,
     outdated: Annotated[bool, Field(description="Annotate packages that have newer versions available.")] = False,
+    prune: Annotated[list[str] | None, Field(description="Hide these packages and their dependencies.")] = None,
+    universal: Annotated[bool, Field(description="Show the tree for all platforms, not just this one.")] = False,
+    no_dedupe: bool = False,
     extras: Extras = None,
     groups: Groups = None,
+    all_groups: bool = False,
     no_dev: bool = False,
     script: Script = None,
     frozen: Annotated[bool, Field(description="Read uv.lock as-is (otherwise a stale lockfile is refreshed).")] = False,
@@ -280,8 +356,10 @@ async def uv_tree(
     if depth is not None:
         args.argv += ["--depth", str(depth)]
     args.many("--package", packages, "packages").flag(invert, "--invert").flag(outdated, "--outdated")
-    args.dependency_selection(extras=extras, groups=groups, no_dev=no_dev)
-    args.opt("--script", script, "script").flag(frozen, "--frozen").opt("--python", python, "python").extra(extra_args)
+    args.many("--prune", prune, "prune").flag(universal, "--universal").flag(no_dedupe, "--no-dedupe")
+    args.dependency_selection(extras=extras, groups=groups, all_groups=all_groups, no_dev=no_dev)
+    args.opt("--script", script, "script").flag(frozen, "--frozen").opt("--python", python, "python")
+    args.extra(extra_args)
     return await run(frozen_if_read_only(args), cwd=cwd)
 
 
@@ -297,13 +375,23 @@ async def uv_export(
         Field(description="Write to this file (relative to the project). Omit to return the content in stdout."),
     ] = None,
     no_hashes: bool = False,
+    no_header: bool = False,
     no_emit_project: Annotated[bool, Field(description="Leave the project itself out of the output.")] = False,
+    no_emit_packages: Annotated[list[str] | None, Field(description="Leave these packages out of the output.")] = None,
+    prune: Annotated[
+        list[str] | None, Field(description="Drop these packages and their exclusive dependencies.")
+    ] = None,
     extras: Extras = None,
+    all_extras: bool = False,
     groups: Groups = None,
+    all_groups: bool = False,
     no_dev: bool = False,
     member: Member = None,
+    all_packages: Annotated[bool, Field(description="Export the whole workspace.")] = False,
+    script: Script = None,
     frozen: Frozen = False,
     locked: Locked = False,
+    resolver: Resolver = None,
     extra_args: ExtraArgs = None,
 ) -> ExportResult:
     """Export uv.lock as requirements.txt, pylock.toml or a CycloneDX SBOM (e.g. for Docker or other tools)."""
@@ -316,9 +404,11 @@ async def uv_export(
             raise ValidationError("output_file cannot be used in read-only mode; omit it to get the content back")
         out = resolve_path(output_file, settings, base=cwd, what="output_file")
         args.path_opt("--output-file", out)
-    args.flag(no_hashes, "--no-hashes").flag(no_emit_project, "--no-emit-project")
-    args.dependency_selection(extras=extras, groups=groups, no_dev=no_dev)
-    args.opt("--package", member, "member").flag(frozen, "--frozen").flag(locked, "--locked").extra(extra_args)
+    args.flag(no_hashes, "--no-hashes").flag(no_header, "--no-header").flag(no_emit_project, "--no-emit-project")
+    args.many("--no-emit-package", no_emit_packages, "no_emit_packages").many("--prune", prune, "prune")
+    args.dependency_selection(extras=extras, all_extras=all_extras, groups=groups, all_groups=all_groups, no_dev=no_dev)
+    args.opt("--package", member, "member").flag(all_packages, "--all-packages").opt("--script", script, "script")
+    args.flag(frozen, "--frozen").flag(locked, "--locked").resolver(resolver).extra(extra_args)
     result = await run(frozen_if_read_only(args), cwd=cwd, mutating=out is not None)
     return extend(result, ExportResult, output_file=str(out) if out else None)
 
@@ -382,7 +472,7 @@ async def uv_format(
     args = Args("format").flag(check, "--check").flag(diff, "--diff").extra(extra_args)
     if ruff_args:
         args.argv.append("--")
-        args.argv += Args().extra(ruff_args).argv
+        args.argv += Args().passthrough(ruff_args).argv
     return await run(args, cwd=cwd, mutating=not (check or diff))
 
 
@@ -422,6 +512,9 @@ async def uv_audit(
     ignore: Annotated[
         list[str] | None, Field(description="Vulnerability IDs to ignore (e.g. 'GHSA-xxxx', 'PYSEC-...').")
     ] = None,
+    ignore_until_fixed: Annotated[
+        list[str] | None, Field(description="Vulnerability IDs to ignore until a fixed version exists.")
+    ] = None,
     script: Script = None,
     frozen: Frozen = False,
     locked: Locked = False,
@@ -430,7 +523,9 @@ async def uv_audit(
     """Check the locked dependencies against known vulnerability databases (OSV). Experimental in uv."""
     cwd = project_dir(project_path)
     args = Args("audit", "--output-format", "json").flag(no_dev, "--no-dev").many("--ignore", ignore, "ignore")
-    args.opt("--script", script, "script").flag(frozen, "--frozen").flag(locked, "--locked").extra(extra_args)
+    args.many("--ignore-until-fixed", ignore_until_fixed, "ignore_until_fixed")
+    args.opt("--script", script, "script").flag(frozen, "--frozen").flag(locked, "--locked")
+    args.extra(extra_args)
     result = await run(frozen_if_read_only(args), cwd=cwd)
     report = load_json(result.stdout)
     return extend(result, AuditResult, report=report, stdout="" if report is not None else result.stdout)

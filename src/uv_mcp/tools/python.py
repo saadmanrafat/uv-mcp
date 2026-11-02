@@ -32,6 +32,9 @@ async def uv_python_list(
     all_versions: Annotated[
         bool, Field(description="Include every patch version, not just the latest per minor.")
     ] = False,
+    all_platforms: Annotated[bool, Field(description="Include downloads for every OS, not just this one.")] = False,
+    all_arches: Annotated[bool, Field(description="Include downloads for every CPU architecture.")] = False,
+    show_urls: Annotated[bool, Field(description="Include download URLs.")] = False,
     extra_args: ExtraArgs = None,
 ) -> PythonListResult:
     """List Python interpreters found on this machine and versions uv can download.
@@ -39,7 +42,9 @@ async def uv_python_list(
     Entries with a null path are downloadable but not installed.
     """
     args = Args("python", "list", "--output-format", "json")
-    args.flag(only_installed, "--only-installed").flag(all_versions, "--all-versions").extra(extra_args)
+    args.flag(only_installed, "--only-installed").flag(all_versions, "--all-versions")
+    args.flag(all_platforms, "--all-platforms").flag(all_arches, "--all-arches").flag(show_urls, "--show-urls")
+    args.extra(extra_args)
     if request:
         args.positional([request], "request")
     result = await run(args)
@@ -58,11 +63,12 @@ async def uv_python_install(
     ] = False,
     reinstall: bool = False,
     upgrade: Annotated[bool, Field(description="Upgrade existing installs to the latest patch release.")] = False,
+    force: Annotated[bool, Field(description="Replace existing python executables that uv did not install.")] = False,
     extra_args: ExtraArgs = None,
 ) -> CommandResult:
     """Download and install uv-managed Python versions. With no versions, installs the version the project requires (or the latest)."""
     args = Args("python", "install").flag(default, "--default").flag(reinstall, "--reinstall")
-    args.flag(upgrade, "--upgrade").extra(extra_args).positional(versions, "version")
+    args.flag(upgrade, "--upgrade").flag(force, "--force").extra(extra_args).positional(versions, "version")
     return await run(args, mutating=True, lock_key="global:python")
 
 

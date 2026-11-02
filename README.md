@@ -34,11 +34,14 @@ Per-client instructions, including Claude Desktop, Cursor, VS Code and OpenCode:
 
 ## What agents get
 
-- **50 tools named after the CLI**: `uv_init`, `uv_add`, `uv_remove`, `uv_sync`, `uv_lock`, `uv_run`,
+- **51 tools named after the CLI**: `uv_init`, `uv_add`, `uv_remove`, `uv_sync`, `uv_lock`, `uv_run`,
   `uv_tree`, `uv_export`, `uv_version`, `uv_python_install`, `uv_python_pin`, `uv_venv`, `uv_tool_run` (uvx),
   `uv_pip_compile`, `uv_build`, `uv_publish`, `uv_audit`, `uv_workspace_list`, ... covering every uv command
   ([coverage table](https://saadman.dev/uv-mcp/reference/tools/#uv-command-coverage)), plus `extra_args` on every
   tool and `uv_command` for anything else.
+- **Every uv option**: common options are typed parameters (plus a shared `resolver` object for resolution
+  strategy, pre-releases, indexes, platforms); every other option is accepted through `extra_args`, validated
+  against your installed uv. `uv_help` lets agents look up any option.
 - **Structured results**: `success`, `exit_code`, `stdout`, `stderr` and an actionable `hint` on failure;
   package, Python and tool lists come back parsed.
 - **Diagnose and repair**: `uv_diagnose` checks interpreter, lockfile, `.venv` and package consistency;

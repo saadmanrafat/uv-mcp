@@ -35,7 +35,8 @@ async def test_optional_params_are_compacted(client) -> None:
         "description": schema["properties"]["project_path"]["description"],
         "type": "string",
     }
-    assert schema["required"] == ["packages"]
+    remove = next(t for t in await client.list_tools() if t.name == "uv_remove")
+    assert remove.input_schema["required"] == ["packages"]
 
 
 def test_compact_schema_keeps_non_null_defaults() -> None:
