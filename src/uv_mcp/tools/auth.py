@@ -15,9 +15,7 @@ from ..registry import uv_tool
 from ..security import ValidationError, safe_value
 from ._common import Args, run
 
-Service = Annotated[
-    str, Field(description="Index domain or URL, e.g. 'pypi.example.com' or 'https://pkgs.dev.azure.com/org/'.")
-]
+Service = Annotated[str, Field(description="Index host or URL, e.g. 'pypi.example.com'.")]
 
 
 @uv_tool(title="Store index credentials (uv auth login)", toolset="auth", idempotent=True)

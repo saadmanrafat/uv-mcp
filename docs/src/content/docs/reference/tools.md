@@ -757,7 +757,7 @@ Save credentials for a package index in uv's credential store so later installs 
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `service` | string | **required** | Index domain or URL, e.g. 'pypi.example.com' or 'https://pkgs.dev.azure.com/org/'. |
+| `service` | string | **required** | Index host or URL, e.g. 'pypi.example.com'. |
 | `token` | string |  | Access token (sent to uv over stdin, never echoed back). |
 | `username` | string |  |  |
 | `password` | string |  | Password (sent over stdin, never echoed back). |
@@ -770,7 +770,7 @@ Delete stored credentials for a package index.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `service` | string | **required** | Index domain or URL, e.g. 'pypi.example.com' or 'https://pkgs.dev.azure.com/org/'. |
+| `service` | string | **required** | Index host or URL, e.g. 'pypi.example.com'. |
 | `username` | string |  |  |
 
 ## uv itself
